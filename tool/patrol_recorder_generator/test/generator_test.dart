@@ -55,6 +55,58 @@ class MemoryFiles implements WorkspaceFiles {
 }
 
 void main() {
+  test('new scaffolds document required wiring and Patrol execution', () {
+    final output = generateJourney(
+      steps: steps(),
+      app: app,
+      config: ExportConfig(
+        journeyId: 'custom_login',
+        outputDirectory: 'patrol_test/custom',
+        profile: 'secondary',
+      ),
+      deferredInputs: {'email', 'password'},
+    );
+    expect(output.data, contains('TODO: Connect inputEmail'));
+    expect(output.data, contains('TODO: Connect inputPassword'));
+    expect(output.data, contains('never hardcode real secrets'));
+    expect(output.data, contains('/// User-owned input implementation'));
+    expect(output.data, contains('/// Loads test fixtures'));
+    expect(output.test, contains('TODO: Complete required getters'));
+    expect(output.test, contains('custom_login_inputs.dart before running'));
+    expect(
+      output.test,
+      contains(
+        'patrol test --target patrol_test/custom/custom_login/custom_login_test.dart '
+        '--dart-define RECORDER_PROFILE=secondary',
+      ),
+    );
+    expect(output.test, contains('application directory'));
+    expect(output.test, contains("not the IDE's standard Run Test"));
+    expect(output.test, contains('Do not edit or commit test_bundle.dart'));
+    expect(output.test, contains('TODO: Add bounded waits and assertions'));
+    expect(output.steps, contains('callers must assert'));
+
+    final environmentSecret = generateJourney(
+      steps: steps(),
+      app: app,
+      config: ExportConfig(),
+    );
+    expect(
+      environmentSecret.data,
+      contains('TODO: Supply RECORDER_SECRET_PASSWORD'),
+    );
+    expect(environmentSecret.test, contains('TODO: Complete required getters'));
+
+    final noInputs = generateJourney(
+      steps: [steps().last],
+      app: app,
+      config: ExportConfig(),
+    );
+    expect(noInputs.data, isNot(contains('TODO:')));
+    expect(noInputs.test, isNot(contains('TODO: Complete required getters')));
+    expect(noInputs.test, contains('TODO: Add bounded waits and assertions'));
+  });
+
   test(
     'input validation accepts explicit provider wiring, never secret literals',
     () {
@@ -115,7 +167,11 @@ void main() {
     final owned = Uint8List.fromList(
       utf8.encode('// my custom fixture provider'),
     );
+    final ownedTest = Uint8List.fromList(
+      utf8.encode('// my custom test and assertions'),
+    );
     memory.content[root.resolve(first.config.inputsPath)] = owned;
+    memory.content[root.resolve(first.config.testPath)] = ownedTest;
     final second = generateJourney(
       steps: [
         ...steps(),
@@ -143,6 +199,7 @@ void main() {
       containsAll([second.config.inputsPath, second.config.testPath]),
     );
     expect(memory.content[root.resolve(first.config.inputsPath)], owned);
+    expect(memory.content[root.resolve(first.config.testPath)], ownedTest);
     expect(
       utf8.decode(memory.content[root.resolve(second.config.stepsPath)]!),
       contains('target4'),

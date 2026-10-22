@@ -278,6 +278,20 @@ patrol_cli:main` if the global executable is on PATH. The first web run installs
 official Node/Playwright dependencies. Use the tested Node 22 directly on PATH;
 do not wrap Patrol in `npx --call`.
 
+Run individual generated tests through Patrol CLI with `--target`, not VS Code's
+standard **Run Test / Debug Test** buttons or direct `flutter test`. Patrol CLI
+initializes the app service required by `patrolTest`; bypassing it can cause
+`LateInitializationError: Field 'patrolAppService' has not been initialized`.
+Widget tests in `test/` still use the normal Flutter test runner.
+
+For this repository's example, open the repository root in VS Code and make a
+journey's `*_test.dart` file active. Press **Cmd+Shift+B** (macOS) or
+**Ctrl+Shift+B** (Windows/Linux) to run **Patrol: Run current test**. The
+[workspace task](.vscode/tasks.json) supplies the active file to Patrol CLI,
+uses the example directory, and runs headless Chrome with the `demo` profile.
+Save changes first and keep Dart/Flutter/Node 22 on VS Code's PATH. Results appear
+in the task terminal; input-provider wiring is still required.
+
 Patrol launches a separate app. The recording connection is not assumed to
 survive; results remain in the terminal, not an automatic DevTools result feed.
 Do not add a discoverable suite file importing other discoverable tests.

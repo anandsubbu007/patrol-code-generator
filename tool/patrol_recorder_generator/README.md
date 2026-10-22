@@ -56,6 +56,14 @@ Implement the abstract getters in the input file and return the instance from
 from your private provider, not YAML. Pass your instance directly to
 `runRecordedJourney($, inputs)` if you prefer your own test entrypoint.
 
+New scaffolds include TODOs beside required provider/secret wiring and final
+outcome assertions. Dartdoc explains ownership and gives a journey-specific
+`patrol test --target ...` command to run from the application directory.
+Use Patrol CLI, not the IDE's ordinary Flutter test action: Patrol generates
+`test_bundle.dart` and initializes its app service. Do not edit or commit that
+bundle. Already-existing user-owned files are preserved, so regeneration does
+not inject these reminders into customized providers or test wrappers.
+
 Re-recording a journey replaces its YAML. Running this CLI again replaces only
 recognized generated files, never manually maintained implementations/assertions.
 New input getters make missing implementation an analyzer error. Source changes

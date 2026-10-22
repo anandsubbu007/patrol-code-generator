@@ -317,19 +317,31 @@ void validateInputs(JourneyInputs inputs) {
         _ => throw StateError('Unknown RECORDER_PROFILE; inspect the user-owned inputs file.'),
       }''';
         }
-        return '@override\nString get ${r.getter} => $expression;';
+        final guidance = deferredInputs.contains(r.name)
+            ? '  // TODO: Connect ${r.getter} to your ${r.secret ? 'private test provider; never hardcode real secrets' : 'test fixture/provider'} before running.\n'
+            : r.secret
+            ? '  // TODO: Supply ${r.define} securely or connect ${r.getter} to your private test provider.\n'
+            : '';
+        return '$guidance@override\nString get ${r.getter} => $expression;';
       })
       .join('\n');
   final data = formatter.format('''
 // User-owned. Connect fixtures or secret providers here. Regeneration preserves this file.
 import '${config.journeyId}_inputs.g.dart';
 
+/// User-owned input implementation; regeneration preserves this file.
+///
+/// Recorded values are not saved. Connect required inputs before replay.
+/// Keep real credentials out of source code, YAML, and generated files.
 class LocalJourneyInputs extends JourneyInputs {
   const LocalJourneyInputs(this.profile);
   final String profile;
   $getters
 }
 
+/// Loads test fixtures or private-provider data before replay.
+///
+/// Add asynchronous provider initialization here when needed.
 Future<JourneyInputs> loadInputs() async {
   const profile = String.fromEnvironment('RECORDER_PROFILE', defaultValue: ${dartLiteral(config.profile)});
   if (!const <String>{${profiles.keys.map(dartLiteral).join(',')}}.contains(profile)) {
@@ -473,6 +485,7 @@ import '${config.journeyId}_inputs.g.dart';
 const recordedJourneyName = ${dartLiteral(config.caseName)};
 const recordedJourneyTag = ${dartLiteral(config.tag)};
 
+/// Replays recorded actions; callers must assert their expected business outcomes.
 Future<void> runRecordedJourney(PatrolIntegrationTester \$, JourneyInputs inputs) async {
   validateInputs(inputs);
   final semantics = \$.tester.ensureSemantics();
@@ -522,13 +535,23 @@ import 'package:patrol/patrol.dart';
 import '${config.journeyId}_inputs.dart';
 import '${config.journeyId}_steps.g.dart';
 
+/// User-owned Patrol entrypoint; regeneration preserves setup and assertions.
+///
+/// Run from the application directory containing its Patrol dependency:
+/// `patrol test --target ${config.testPath} --dart-define RECORDER_PROFILE=${config.profile}`
+///
+/// Use Patrol CLI, not the IDE's standard Run Test button or direct flutter test.
+/// Patrol CLI generates test_bundle.dart and initializes patrolAppService.
+/// Do not edit or commit test_bundle.dart.
 void main() {
   patrolTest(recordedJourneyName, (\$) async {
+    ${requirements.any((r) => deferredInputs.contains(r.name) || r.secret) ? '// TODO: Complete required getters in ${config.journeyId}_inputs.dart before running.' : ''}
     final inputs = await loadInputs().timeout(
       const Duration(milliseconds: ${config.waitTimeoutMs}),
       onTimeout: () => throw StateError('Input provider timed out. Check the fixture provider or increase recorder_config.wait_timeout_ms.'),
     );
     await runRecordedJourney(\$, inputs);
+    // TODO: Add bounded waits and assertions for the expected final outcome.
   }, tags: [recordedJourneyTag]);
 }
 ''');

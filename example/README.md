@@ -51,11 +51,19 @@ configuration. A custom test factory can be configured once in pubspec if needed
 
 ## YAML -> Dart
 
+The generator is a development dependency of the **example app**, not the
+repository-root recorder package. Run it from the example directory:
+
 ```sh
+cd example
 dart run patrol_recorder_generator:generate --journey my_login
 # Or generate every recorded *.yml:
 dart run patrol_recorder_generator:generate
 ```
+
+If your terminal is already in `example/`, omit the `cd example` line. From the
+repository root, the equivalent one-off invocation is
+`dart --directory=example run patrol_recorder_generator:generate`.
 
 The output is:
 
@@ -72,6 +80,12 @@ your implementation; the generated entrypoint passes it to
 `runRecordedJourney($, inputs)`. Initial getters throw until wired intentionally.
 No input values or expressions are evaluated from YAML.
 
+New scaffolds include TODOs for required input/secret wiring and bounded final
+outcome assertions. Their Dartdoc includes the journey's Patrol command and
+explains that it must run from the app directory, not via the IDE's ordinary
+test button. Resolve input TODOs before replay. Existing customized input and
+test files are preserved, so regeneration does not insert new comments into them.
+
 The real [yaml_login recording](patrol_recorder/yaml_login.yml), its
 [abstract contract](patrol_test/recorded_journeys/yaml_login/yaml_login_inputs.g.dart),
 and [manually connected implementation](patrol_test/recorded_journeys/yaml_login/yaml_login_inputs.dart)
@@ -80,6 +94,27 @@ demonstrate this. The implementation uses fictional
 Real secrets must come from your private test provider.
 
 ## Run and maintain
+
+### One-shortcut run in VS Code
+
+Open the repository root (`patrol-code-generator`) as your VS Code workspace.
+Open a journey's `*_test.dart` file, then press **Cmd+Shift+B** on macOS
+(**Ctrl+Shift+B** on Windows/Linux). The workspace's default build task,
+**Patrol: Run current test**, runs that file through Patrol CLI in headless Chrome
+with `RECORDER_PROFILE=demo`. Results and failures appear in the dedicated task
+terminal. No terminal command or target-path editing is needed between runs.
+
+You can also select **Terminal > Run Task > Patrol: Run current test**. Keep the
+test entrypoint active, not its generated steps/input file. Save your changes
+before running. Dart, Flutter, and Node 22 must be available on VS Code's PATH;
+if you change PATH, restart VS Code. Only one instance runs at a time.
+
+The task is for Patrol tests, not ordinary widget tests or other active files.
+It uses the existing input provider; it does not fill in placeholder getters.
+To use another profile/device, edit the arguments in the
+[workspace task](../.vscode/tasks.json) or use the CLI below.
+
+### Command-line alternative
 
 ```sh
 flutter analyze
@@ -94,6 +129,25 @@ dart pub global run patrol_cli:main test --device chrome --web-headless
 For another journey, substitute its target and profiles that your implementation
 supports. Patrol installs its official local Playwright dependencies on first run;
 put Node 22 directly on PATH. Do not wrap Patrol in `npx --call`.
+
+Use Patrol CLI even for a single generated test. VS Code's standard **Run Test /
+Debug Test** buttons and direct `flutter test` invocation do not start Patrol's
+app service and can fail with
+`LateInitializationError: Field 'patrolAppService' has not been initialized`.
+For a journey named `login_try`, run from this example directory:
+
+```sh
+dart pub global run patrol_cli:main test \
+  --target patrol_test/recorded_journeys/login_try/login_try_test.dart \
+  --dart-define RECORDER_PROFILE=demo --device chrome --web-headless
+```
+
+Before replay, implement every getter in that journey's user-owned input provider.
+New providers initially throw until connected. The
+[login_try provider](patrol_test/recorded_journeys/login_try/login_try_inputs.dart)
+uses the fictional demo email and a synthetic obscured-field value for this
+non-authenticating local app. For real apps, connect your private test provider;
+do not put real credentials in YAML or generated files.
 
 To update a flow, reset the app, re-record under the same name, and rerun the
 generator. Only `.g.dart` files are regenerated. Your implementation/assertions
