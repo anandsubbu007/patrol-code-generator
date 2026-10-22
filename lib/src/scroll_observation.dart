@@ -1,8 +1,14 @@
 part of 'recorder.dart';
 
 class _ScrollTrace {
-  _ScrollTrace(this.state, this.element, this.view, this.start, this.axis, this.source)
-      : position = state.position;
+  _ScrollTrace(
+    this.state,
+    this.element,
+    this.view,
+    this.start,
+    this.axis,
+    this.source,
+  ) : position = state.position;
   final ScrollableState state;
   final Element element;
   final RecorderTarget view;
@@ -45,22 +51,29 @@ extension _ScrollObservation on _RecorderObserver {
         result[state] = state.position.pixels;
       }
     }
+
     add(leaf);
-    leaf.visitAncestorElements((e) { add(e); return e != root; });
+    leaf.visitAncestorElements((e) {
+      add(e);
+      return e != root;
+    });
     return result;
   }
 
   void _finishAfterFrame(_ScrollTrace trace) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_active && identical(_scrolls[trace.state], trace) &&
+      if (_active &&
+          identical(_scrolls[trace.state], trace) &&
           (!trace.state.mounted || !trace.position.isScrollingNotifier.value)) {
         _finishScroll(trace.state);
       }
     });
   }
 
-  void _beginScroll(ScrollableState state, {
-    double? start, ObservationSource source = ObservationSource.scrollNotification,
+  void _beginScroll(
+    ScrollableState state, {
+    double? start,
+    ObservationSource source = ObservationSource.scrollNotification,
   }) {
     if (!_active || root == null || _scrolls.containsKey(state)) return;
     final element = _scrollElement(state);
@@ -79,7 +92,9 @@ extension _ScrollObservation on _RecorderObserver {
       source,
     );
     trace.onPixels = () => trace.delta = trace.position.pixels - trace.start;
-    trace.onActivity = () { if (!trace.position.isScrollingNotifier.value) _finishAfterFrame(trace); };
+    trace.onActivity = () {
+      if (!trace.position.isScrollingNotifier.value) _finishAfterFrame(trace);
+    };
     _scrolls[state] = trace;
     trace.position.addListener(trace.onPixels);
     trace.position.isScrollingNotifier.addListener(trace.onActivity);
@@ -95,7 +110,9 @@ extension _ScrollObservation on _RecorderObserver {
     WidgetsBinding.instance.hitTestInView(hit, position, viewId);
     for (final entry in hit.path) {
       final render = entry.target;
-      if (render is! RenderObject || render.debugCreator is! DebugCreator) continue;
+      if (render is! RenderObject || render.debugCreator is! DebugCreator) {
+        continue;
+      }
       final element = (render.debugCreator as DebugCreator).element;
       if (!_within(element, root!)) continue;
       for (final state in scrollAncestors(element).keys) {
@@ -109,9 +126,14 @@ extension _ScrollObservation on _RecorderObserver {
 
   void observeDragScroll(_PendingPointer pending) {
     for (final entry in pending.scrollStarts.entries) {
-      if (entry.key.mounted && (entry.key.position.pixels != entry.value ||
-          entry.key.position.userScrollDirection != ScrollDirection.idle)) {
-        _beginScroll(entry.key, start: entry.value, source: ObservationSource.pointerGesture);
+      if (entry.key.mounted &&
+          (entry.key.position.pixels != entry.value ||
+              entry.key.position.userScrollDirection != ScrollDirection.idle)) {
+        _beginScroll(
+          entry.key,
+          start: entry.value,
+          source: ObservationSource.pointerGesture,
+        );
       }
     }
   }
@@ -257,12 +279,14 @@ extension _ScrollObservation on _RecorderObserver {
     final trace = _scrolls.remove(state);
     if (trace == null) return;
     trace.dispose();
-    if (trace.delta.abs() < 1 || root == null) return;
     if (state.mounted && !identical(state.position, trace.position)) {
-      recorder._problem('The ScrollPosition changed during the gesture. Keep the ScrollController and widget key stable, '
-        'or wait for the view to finish rebuilding and re-record.');
+      recorder._problem(
+        'The ScrollPosition changed during the gesture. Keep the ScrollController and widget key stable, '
+        'or wait for the view to finish rebuilding and re-record.',
+      );
       return;
     }
+    if (trace.delta.abs() < 1 || root == null) return;
     if (trace.view.issue != null) {
       recorder._problem('Scrolling view needs a key. ${trace.view.issue}');
       return;

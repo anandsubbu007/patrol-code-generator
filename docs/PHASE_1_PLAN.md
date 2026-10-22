@@ -1,7 +1,15 @@
 # Phase 1: Flutter DevTools Patrol Recorder
 
 **Status:** Research and Milestone 1 completed on 22 October 2026. Stopped pending approval for Milestone 2. [Milestone 1 evidence](MILESTONE_1_RESULTS.md).  
-**Implementation follow-up:** The requested bounded automatic recorder is implemented and verified. Per-action hooks were removed; key-first scoped selectors have no coordinate/index fallback. Recording setup and profiles live in `example/patrol_test/`, not application `lib/`. See [automatic implementation results](#automatic-implementation-results).  
+
+**Implementation follow-up:** The requested bounded automatic recorder is
+implemented. Protocol 5/schema 3 adds inline hyperlink actions, long presses,
+target-based scroll replay, and configurable readiness limits. Scroll observation
+includes public position listeners; recording setup and profiles live in
+`example/patrol_test/`, not application `lib/`. See
+[automatic implementation results](#automatic-implementation-results) and the
+current follow-up below.
+
 **Research date:** 22 October 2026.  
 **Working name:** `patrol_recorder` (name availability and naming permission not yet checked).
 
@@ -14,8 +22,8 @@ defaults. This supersedes the prior direct-generation dialog described historica
 below. See [YAML source and generation workflow](#yaml-source-and-generation-workflow)
 and the [current user guide](../README.md).
 
-**Stable-capture/bootstrap follow-up:** New schema-2 YAML omits both session IDs
-and the app import/builder block. Screenshots use semantic page/state names under
+**Stable-capture/bootstrap follow-up:** New schema-3 YAML omits both session IDs
+and the app import/builder block; schemas 1 and 2 remain readable. Screenshots use semantic page/state names under
 `<screenshots_directory>/<journey>/<name>.png`, with user overrides and safe
 replacement. The generator infers normal `lib/main.dart -> main()` and allows a
 one-time pubspec override for custom test initialization. The example now includes
@@ -832,8 +840,9 @@ Commands, saved artifacts, failures, and verification boundaries are recorded in
 
 ### Automatic implementation results
 
-The current implementation supersedes M1's manual hooks, not its historical
-evidence. All changes are unpublished.
+This section records the initial automatic implementation milestone. Its
+implementation snapshot and counts are historical; the protocol-5 additions and
+current verification are recorded below. All changes remain unpublished.
 
 **Integration layout**
 
@@ -930,12 +939,14 @@ the actual export rather than relying on a locator timeout. The production build
 emitted a Cupertino font-family warning and the extension build emitted the
 existing PWA-strategy deprecation warning; both builds completed successfully.
 
-The automatic slice still does not implement scrolling, long presses, arbitrary
-native/custom controls, full selector editing, or M2-M5. Unsupported observed
-gestures block export. Pointer taps are candidates, not recognizer/business-success
-proof. Reference-only field activity intentionally does not differentiate all IME,
-selection, autofill, or programmatic causes. Mobile, multi-view, complete overlay/
-gesture combinations and device performance budgets need further validation.
+**Historical snapshot before the protocol-5 follow-up:** this earlier automatic
+slice did not implement scrolling or long presses. The current bounded support
+and its limits are documented below. Arbitrary native/custom controls, full
+selector editing, and M2-M5 remain out of scope. Pointer taps are candidates, not
+recognizer/business-success proof. Reference-only field activity intentionally
+does not differentiate all IME, selection, autofill, or programmatic causes.
+Mobile, multi-view, complete overlay/gesture combinations and device performance
+budgets need further validation.
 
 ### Guided workflow repair
 
@@ -1020,9 +1031,11 @@ independently in the proof. Concurrent editing can race export checks; user-owne
 files are never replaced, and generated-only replacement checks ownership and
 pre-write content. An interrupted export can leave partial output with an error.
 
-No claim is made of complete native/scroll/long-press recording. Unsupported
-gestures are surfaced for review, not synthesized as coordinate actions. Input
-activity remains reference-only and may include programmatic or selection changes.
+Historical boundary before the protocol-5 follow-up: scroll and long-press
+recording had not yet been generalized. The current support is bounded to
+identifiable Flutter scrollables and long-press targets; unsupported gestures are
+surfaced for review, never synthesized as coordinate actions. Input activity
+remains reference-only and may include programmatic or selection changes.
 
 ### YAML source and generation workflow
 
@@ -1146,8 +1159,10 @@ baseline/history engine, or visual regression functionality was added.
 - Source YAML contains no `session_id`; runtime session tokens remain only in
   live transport to detect app restarts. Record begins a fresh flow rather than
   guessing whether an old on-disk capture belongs to a restarted app.
-- Legacy schema-1 sources remain readable. New recordings emit schema 2. Old
-  session directories and unreferenced images are not automatically deleted.
+- Legacy schema-1 sources remain readable. New recordings emitted schema 2 at
+  this historical milestone; current recordings emit schema 3 and read schemas
+  1 and 2. Old session directories and unreferenced images are not automatically
+  deleted.
 
 **Bootstrap resolution**
 
@@ -1181,7 +1196,7 @@ declared directly in the development-only generator package, not the recorder ru
 | Animation lab | Slide/scale, animated size/color, cross-fade, bounded loading, expansion tile | Finite animations complete; no claim for endless animation settling |
 | Repeated controls | Duplicate Continue labels and identical icon buttons in keyed cards | Ancestor scoping selects the intended card without coordinate/index fallback |
 | Forms/overlays | TextFormField validation, dropdown, bottom sheet and information dialog | Automatic input references and active-overlay capture names |
-| Settings | Switch/checkbox tiles, confirmation dialog, snackbar and long list | Tap workflows work; a real drag remains explicit review-required |
+| Settings | Switch/checkbox tiles, confirmation dialog, snackbar and long list | Tap workflows and target-based scrolling are supported |
 
 Widget tests exercise these surfaces with an automatic recorder wrapper and no
 action hooks. Real DevTools recorded
@@ -1189,15 +1204,56 @@ action hooks. Real DevTools recorded
 and four named captures (`animation_expanded`, `repeated_controls`,
 `information_dialog`, `settings_reset`). The CLI generated its code and official
 Patrol web execution passed, including disambiguation of Continue within
-`business_card`. The re-recorded
-[yaml_login.yml](../example/patrol_recorder/yaml_login.yml) now uses schema 2 and
+`business_card`. At that milestone, the re-recorded
+[yaml_login.yml](../example/patrol_recorder/yaml_login.yml) used schema 2 and
 stable login/account images; its test passed using inferred main and the existing
-secondary-profile input provider.
+secondary-profile input provider. Current recordings use schema 3.
 
 These results expand the verified matrix rather than establish universal Flutter
 or native-platform support. Continuous animations, arbitrary custom gestures,
-native views, automatic scroll/long-press generation and whole-page capture
-remain outside the demonstrated slice.
+native views and whole-page capture remain outside the demonstrated slice.
+
+### Protocol-5 interaction and async follow-up
+
+This is the current bounded implementation, superseding earlier milestone
+statements that scroll and long-press observation were unsupported.
+
+- Runtime protocol 5 observes inline hyperlink activation through public Flutter
+  text-range APIs, long presses, and drag, wheel, pan/zoom, and accessibility
+  scrolling. Scroll-position listeners preserve standard pointer-scroll
+  observation when an ancestor consumes `ScrollNotification`s; listener cleanup
+  covers stop, disposal, and replaced positions. Programmatic `jumpTo` without
+  user intent does not create a user-action step.
+- Generated scrolling uses unique primary-scrollable selection, axis validation,
+  and Patrol's public continuous `scrollUntilVisible` API to reach an identified
+  visible item. It is target-based, not exact-offset reproduction. Coordinate and
+  index fallbacks remain prohibited.
+- Generated actions use bounded visibility/enabled waits and `SettlePolicy.noSettle`
+  rather than global settling after each action. `wait_timeout_ms` defaults to
+  15000 (range 100-120000); `max_scrolls` defaults to 60 (range 1-200).
+- New recordings use schema 3. Schemas 1 and 2 remain readable. Link text must be
+  unique in a keyed paragraph; duplicate links need distinct keyed paragraphs or
+  a keyed `TextButton`/`WidgetSpan`.
+- The async example covers a looping animation, inline Terms link, local delayed
+  readiness, lazy paginated options, a long press, stable keys, and the named
+  `async_loaded` screenshot. Its delays are local fixtures, not network calls.
+  The preserved test wrapper waits for and asserts the selection result, long
+  press result, and animation switch state.
+- Arbitrary futures/business-state changes are not intercepted. Custom painting,
+  opaque platform views, pinch/slider-specific gestures, and unsupported custom
+  widgets are not universally inferred. Keys improve identity but cannot make
+  unsupported gestures observable; application source is never modified to add
+  keys. Final user assertions need their own bounded outcome waits.
+
+The regression coverage includes consumed-notification drag and wheel scrolling,
+listener detachment after Stop, position replacement, and programmatic scrolling.
+Verification for this follow-up passed: **41 runtime tests, 19 generator tests,
+6 DevTools workflow tests, and 8 example tests**; analysis was clean in all four
+packages. The bundled extension rebuilt and passed official validation. The
+three current Patrol journeys (`async_flow`, `complex_ui`, and `yaml_login`)
+passed together in headless Chrome (**3/3**), including the async journey's
+bounded final assertions. These are current results, distinct from historical
+milestone counts above. Mobile/device validation was not performed.
 
 ## 15. Approval boundary
 

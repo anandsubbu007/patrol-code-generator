@@ -154,6 +154,7 @@ See the actual [recorded YAML example](example/patrol_recorder/yaml_login.yml).
 Every text action uses a whole-string `{{name}}` reference, including secrets.
 There are no raw input defaults, passwords, arbitrary expressions, or coordinate
 selectors in YAML. `secret: true` classifies a reference; it is not a value.
+New recordings use schema 3; the generator continues to read schemas 1 and 2.
 
 Targets prefer keys, then semantics identifiers/labels, field labels/text, then
 supported public widget types. Repeated targets can use a unique ancestor
@@ -318,6 +319,8 @@ recorder_config:
   case_id: sign_in
   case_name: Sign in with demonstration profile
   profile: demo
+  wait_timeout_ms: 15000
+  max_scrolls: 60
 ```
 
 All paths are relative to the selected app project, with no `..`, absolute paths,
@@ -437,8 +440,8 @@ parameters and syntax errors fail generation explicitly. A custom factory must
 return a Widget; supply other setup in your test wrapper/provider as needed.
 The recording entrypoint must not end with `_test.dart`.
 
-YAML schema 1 remains readable with its original bootstrap; re-recording writes
-schema 2 without `app`/`session_id`. If an old recorder configuration deliberately
+YAML schemas 1 and 2 remain readable with their original compatibility behavior;
+re-recording writes schema 3 without `app`/`session_id`. If an old recorder configuration deliberately
 selected a custom factory, move that selection into pubspec before re-recording.
 Do not assume arbitrary app-specific initialization can be inferred automatically.
 
@@ -447,13 +450,13 @@ Do not assume arbitrary app-specific initialization can be inferred automaticall
 | Symptom | Action |
 | --- | --- |
 | Extension missing/unavailable | Build/copy/validate extension assets; run the debug recording entrypoint; enable the real DevTools extension |
-| Protocol mismatch | Restart the recording app and reload rebuilt DevTools assets; runtime protocol is 4, new YAML schema is 2 |
+| Protocol mismatch | Restart the recording app and reload rebuilt DevTools assets; runtime protocol is 5, new YAML schema is 3 |
 | No destination | Refresh authorized projects using a Flutter/IDE DTD session; never use an unrestricted daemon |
 | YAML NOT UP TO DATE | Keep the draft open; resolve permissions/concurrent edits and Retry YAML save |
 | App restarted or browser closed | Last persisted YAML survives. Re-record the same name if the source remains unfinished; do not treat an interrupted flow as complete |
 | Generator rejects active recording | Stop in DevTools and verify the source is saved as stopped |
 | Unknown/ambiguous target | Add a stable key/ancestor, re-record, or explicitly exclude an unnecessary action; never use `.first`/coordinates as a silent fix |
-| Scroll/long press/custom/native action | Not generalized by this slice. Review the unsupported step; author supported Patrol actions in your own test if needed |
+| Scroll/long press/custom/native action | Flutter scrollables and identifiable long-press targets are observed; unsupported custom/native gestures remain review-required. Add unique stable keys and check the recorded target |
 | Missing input getter/value | Implement the abstract contract in the preserved input file; the YAML intentionally contains no values |
 | Existing generated file not recognized | Use a new journey name or reconcile the file manually; handwritten output is not overwritten |
 | Duplicate test execution | Keep only actual tests named `*_test.dart`; do not import discoverable tests from another discoverable entrypoint |
@@ -462,6 +465,32 @@ Ordinary pointer taps are candidates, not callback-success proof. Accessibility
 events are requests before dispatch. Field notifications can include selection,
 composition, or programmatic changes; the recorder does not read/retain raw text
 to distinguish them. It records reference-only field activity.
+
+### Scrolling, links, and asynchronous UI
+
+The recorder observes drag, wheel, pan/zoom, accessibility scrolling, and standard
+Flutter scroll-position changes, including when an ancestor consumes scroll
+notifications. Scroll replay identifies a visible destination and uses bounded,
+continuous Patrol scrolling to reach it; it does not reproduce an exact pixel
+offset. A target key on the `ListView`, `GridView`, or other `ScrollView` and a
+unique key on intended list items improve identity. `max_scrolls` defaults to 60
+and accepts 1-200. `wait_timeout_ms` defaults to 15000 and accepts 100-120000;
+these settings bound readiness and target waits. The recorder does not intercept
+arbitrary `Future`s or infer business-state completion.
+
+Inline links can be generated as text-range taps when their text is unique inside
+a keyed paragraph. If the same link text occurs more than once, distinguish it
+with a unique keyed paragraph, or use a keyed `TextButton`/`WidgetSpan` target.
+Custom-painted controls, opaque platform views, pinch/slider-specific gestures,
+and arbitrary custom widgets are not universally inferred. Keys improve identity
+but cannot make an unsupported gesture observable, and the recorder never edits
+application source to add keys.
+
+Generated actions use bounded visibility/enabled waits rather than globally
+settling the app after every action. This supports a looping animation while
+waiting for a delayed control. Final user assertions should add their own bounded
+waits for the expected outcome; a replay completing is not itself a business
+assertion.
 
 No full editor, arbitrary native recording, subflow/control-flow language, direct
 Run button, visual regression, AI/cloud analysis, or custom E2E engine is included.
@@ -475,11 +504,18 @@ The account overview links to a [UI laboratory](example/lib/showcase.dart):
 | Animation lab | Slide/scale, animated size/color, cross-fade, bounded loading, expansion | Finite animations record/replay; not a claim about indefinite animations |
 | Repeated controls | Two Continue buttons and identical icon types in keyed cards | Unique ancestor scoping; no positional selector fallback |
 | Forms and overlays | Validation, text entry, dropdown, modal sheet, information dialog | Input references and overlay-specific screenshot names |
-| Account settings | Switch/checkbox tiles, confirmation dialog, snackbar, long list | Supported tap actions; an actual drag is explicitly review-required |
+| Account settings | Switch/checkbox tiles, confirmation dialog, snackbar, long list | Stable-target scrolling and supported tap actions |
 
 See [example instructions](example/README.md) for a reproducible walkthrough and
 the [recorded complex journey](example/patrol_recorder/complex_ui.yml). This expands
 test coverage; it is not proof that every Flutter/custom/native widget is supported.
+
+The [async flow](example/patrol_recorder/async_flow.yml) demonstrates an inline
+Terms link, a looping animation, delayed local readiness, a lazy paginated picker,
+scrolling to Option 24, a long press, an explicitly named `async_loaded` screenshot,
+and outcome assertions. Its delayed work is implemented with local `Future.delayed`
+fixtures; it makes no network calls and does not demonstrate interception of
+arbitrary application futures.
 
 ## Maintain the recorder package
 

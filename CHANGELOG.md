@@ -1,3 +1,17 @@
+## Unreleased
+
+* Runtime protocol 5 and YAML schema 3 add hyperlink text-range actions,
+  long-press recording, target-anchored scrolling, and bounded replay readiness;
+  schema 1 and 2 journeys remain readable.
+* Public `ScrollPosition` listeners preserve standard scroll observation when
+  notifications are consumed, and are detached on stop/disposal or position
+  replacement.
+* Generated replay uses continuous target-based Patrol scrolling, configurable
+  `wait_timeout_ms` and `max_scrolls`, and no per-action global settling.
+* The async example now asserts its delayed selection, long-press outcome, and
+  animation switch state with bounded waits. Documentation describes supported
+  interactions and limits.
+
 ## 0.0.1
 
 * Stable page-semantic/route/widget screenshot names with editable state names,

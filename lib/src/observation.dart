@@ -305,7 +305,9 @@ class _RecorderObserver {
       pointer.dispose();
     }
     _pointers.clear();
-    for (final trace in _scrolls.values) { trace.dispose(); }
+    for (final trace in _scrolls.values) {
+      trace.dispose();
+    }
     _scrolls.clear();
     _lastScrollElement = null;
     _detachEditor();
@@ -320,7 +322,8 @@ class _RecorderObserver {
       if (!_active || epoch != _epoch) return;
       _focus();
       for (final trace in _scrolls.values.toList()) {
-        if (!trace.state.mounted || !identical(trace.state.position, trace.position)) {
+        if (!trace.state.mounted ||
+            !identical(trace.state.position, trace.position)) {
           _finishScroll(trace.state);
         }
       }
@@ -486,7 +489,8 @@ class _RecorderObserver {
         pending.moved = true;
         observeDragScroll(pending);
       }
-    } else if (event is PointerScrollEvent || event is PointerPanZoomUpdateEvent) {
+    } else if (event is PointerScrollEvent ||
+        event is PointerPanZoomUpdateEvent) {
       observePointerScroll(event.position, event.viewId);
     } else if (event is PointerCancelEvent) {
       _pointers.remove(event.pointer)?.dispose();
@@ -497,8 +501,8 @@ class _RecorderObserver {
       if (pending.moved) {
         if (pending.scrollHandled || pending.ignoreDrag) return;
         recorder._problem(
-          'Drag needs review: no observable Flutter scroll was identified. Give the ScrollView a unique ValueKey and '
-          'do not consume its ScrollNotifications. Custom canvas/slider drags need a specific adapter; no coordinate tap was generated.',
+          'Drag needs review: no Flutter scrollable was identified. Give the ScrollView a unique ValueKey. '
+          'Custom canvas/slider drags need a specific adapter; no coordinate tap was generated.',
         );
         return;
       }

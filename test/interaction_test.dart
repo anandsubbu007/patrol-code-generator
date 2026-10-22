@@ -10,28 +10,50 @@ import 'package:patrol_recorder/patrol_recorder.dart';
 import 'support/recording.dart';
 
 void main() {
-  testWidgets('scroll position observation survives consumed notifications and detaches on stop', (tester) async {
-    final controller = ScrollController();
-    addTearDown(controller.dispose);
-    await recording(tester, NotificationListener<ScrollNotification>(
-      onNotification: (_) => true,
-      child: SizedBox(height: 240, child: ListView.builder(
-        key: const ValueKey('consumed'), controller: controller, itemCount: 40, itemExtent: 60,
-        itemBuilder: (_, i) => ListTile(key: ValueKey('consumed_$i'), title: Text('Item $i')),
-      )),
-    ), (recorder) async {
-      recorder.start();
-      await tester.pump();
-      await tester.drag(find.byKey(const ValueKey('consumed')), const Offset(0, -220));
-      await tester.pumpAndSettle();
-      expect(recorder.steps.single.action, RecordedAction.scrollUntilVisible);
-      expect(recorder.steps.single.scrollView!.key, 'consumed');
-      recorder.stop();
-      controller.jumpTo(0);
-      await tester.pumpAndSettle();
-      expect(recorder.steps, hasLength(1));
-    });
-  });
+  testWidgets(
+    'scroll position observation survives consumed notifications and detaches on stop',
+    (tester) async {
+      final controller = ScrollController();
+      addTearDown(controller.dispose);
+      await recording(
+        tester,
+        NotificationListener<ScrollNotification>(
+          onNotification: (_) => true,
+          child: SizedBox(
+            height: 240,
+            child: ListView.builder(
+              key: const ValueKey('consumed'),
+              controller: controller,
+              itemCount: 40,
+              itemExtent: 60,
+              itemBuilder: (_, i) => ListTile(
+                key: ValueKey('consumed_$i'),
+                title: Text('Item $i'),
+              ),
+            ),
+          ),
+        ),
+        (recorder) async {
+          recorder.start();
+          await tester.pump();
+          await tester.drag(
+            find.byKey(const ValueKey('consumed')),
+            const Offset(0, -220),
+          );
+          await tester.pumpAndSettle();
+          expect(
+            recorder.steps.single.action,
+            RecordedAction.scrollUntilVisible,
+          );
+          expect(recorder.steps.single.scrollView!.key, 'consumed');
+          recorder.stop();
+          controller.jumpTo(0);
+          await tester.pumpAndSettle();
+          expect(recorder.steps, hasLength(1));
+        },
+      );
+    },
+  );
 
   testWidgets(
     'horizontal and reversed scrolls preserve their replay direction',
@@ -98,39 +120,46 @@ void main() {
     },
   );
 
-  testWidgets('mouse-wheel scrolling produces a target-based scroll', (
-    tester,
-  ) async {
-    await recording(
-      tester,
-      SizedBox(
-        height: 240,
-        child: ListView.builder(
-          key: const ValueKey('wheel_list'),
-          itemCount: 40,
-          itemExtent: 60,
-          itemBuilder: (_, i) =>
-              ListTile(key: ValueKey('row_$i'), title: Text('Row $i')),
-        ),
-      ),
-      (recorder) async {
-        recorder.start();
-        await tester.pump();
-        await tester.sendEventToBinding(
-          PointerScrollEvent(
-            position: tester.getCenter(
-              find.byKey(const ValueKey('wheel_list')),
+  testWidgets(
+    'consumed mouse-wheel notifications produce a target-based scroll',
+    (tester) async {
+      await recording(
+        tester,
+        NotificationListener<ScrollNotification>(
+          onNotification: (_) => true,
+          child: SizedBox(
+            height: 240,
+            child: ListView.builder(
+              key: const ValueKey('wheel_list'),
+              itemCount: 40,
+              itemExtent: 60,
+              itemBuilder: (_, i) =>
+                  ListTile(key: ValueKey('row_$i'), title: Text('Row $i')),
             ),
-            scrollDelta: const Offset(0, 240),
           ),
-        );
-        await tester.pumpAndSettle();
-        expect(recorder.steps.single.action, RecordedAction.scrollUntilVisible);
-        expect(recorder.steps.single.scrollView!.key, 'wheel_list');
-        expect(recorder.steps.single.target.issue, isNull);
-      },
-    );
-  });
+        ),
+        (recorder) async {
+          recorder.start();
+          await tester.pump();
+          await tester.sendEventToBinding(
+            PointerScrollEvent(
+              position: tester.getCenter(
+                find.byKey(const ValueKey('wheel_list')),
+              ),
+              scrollDelta: const Offset(0, 240),
+            ),
+          );
+          await tester.pumpAndSettle();
+          expect(
+            recorder.steps.single.action,
+            RecordedAction.scrollUntilVisible,
+          );
+          expect(recorder.steps.single.scrollView!.key, 'wheel_list');
+          expect(recorder.steps.single.target.issue, isNull);
+        },
+      );
+    },
+  );
 
   testWidgets(
     'accessibility scroll requests use the identified Flutter viewport',
@@ -383,6 +412,71 @@ void main() {
         controller.jumpTo(300);
         await tester.pumpAndSettle();
         expect(recorder.steps, isEmpty);
+      },
+    );
+  });
+
+  testWidgets('replacing a ScrollPosition ends its observation safely', (
+    tester,
+  ) async {
+    final firstController = ScrollController();
+    final secondController = ScrollController();
+    addTearDown(firstController.dispose);
+    addTearDown(secondController.dispose);
+    var controller = firstController;
+    late StateSetter rebuild;
+    await recording(
+      tester,
+      StatefulBuilder(
+        builder: (context, setState) {
+          rebuild = setState;
+          return NotificationListener<ScrollNotification>(
+            onNotification: (_) => true,
+            child: SizedBox(
+              height: 240,
+              child: ListView.builder(
+                key: const ValueKey('replaceable'),
+                controller: controller,
+                physics: identical(controller, firstController)
+                    ? const ClampingScrollPhysics()
+                    : const BouncingScrollPhysics(),
+                itemCount: 40,
+                itemExtent: 60,
+                itemBuilder: (_, i) => Text('Item $i'),
+              ),
+            ),
+          );
+        },
+      ),
+      (recorder) async {
+        recorder.start();
+        await tester.pump();
+        final scrollable = tester.state<ScrollableState>(
+          find.byType(Scrollable),
+        );
+        final originalPosition = scrollable.position;
+        await tester.sendEventToBinding(
+          PointerScrollEvent(
+            position: tester.getCenter(
+              find.byKey(const ValueKey('replaceable')),
+            ),
+            scrollDelta: const Offset(0, 180),
+          ),
+        );
+        controller = secondController;
+        rebuild(() {});
+        await tester.pump();
+        await tester.pumpAndSettle();
+        expect(secondController.hasClients, isTrue);
+        expect(identical(scrollable.position, originalPosition), isFalse);
+        expect(
+          recorder.steps.single.target.issue,
+          contains('ScrollPosition changed'),
+        );
+        recorder.stop();
+        secondController.jumpTo(0);
+        await tester.pumpAndSettle();
+        expect(recorder.steps, hasLength(1));
       },
     );
   });

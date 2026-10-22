@@ -100,8 +100,8 @@ generator. Only `.g.dart` files are regenerated. Your implementation/assertions
 are preserved; implement any new abstract getters reported by the analyzer.
 No discoverable suite file imports other discoverable tests.
 
-Legacy schema-1 YAML remains readable, but re-recording writes schema 2. Old
-session-named PNG directories are not automatically deleted. Current captures
+Legacy schema-1 and schema-2 YAML remain readable, but re-recording writes schema
+3. Old session-named PNG directories are not automatically deleted. Current captures
 reuse `<screenshots_directory>/<journey>/<name>.png`, with an adjacent hidden
 ownership marker to protect unrelated files.
 
@@ -120,7 +120,7 @@ After **Open demo account**, the dashboard offers:
    `information_dialog`.
 4. **Account settings**: toggle notifications/newsletter and confirm/cancel Reset
    preferences. The confirmation capture is named `reset_preferences_dialog`.
-   Scrolling the long list demonstrates a known review-required gesture.
+   Scroll the long list to exercise target-based scrolling.
 
 The real [complex_ui YAML](patrol_recorder/complex_ui.yml) records a 16-action path
 through animations, repeated Continue controls, dialogs and navigation, with four
@@ -128,8 +128,37 @@ named screenshots. Its generated [Patrol test](patrol_test/recorded_journeys/com
 ran successfully using the inferred normal `main()` entrypoint.
 
 Widget tests additionally exercise form values, dropdown selection, bottom-sheet
-naming, toggles, and the unsupported-drag boundary. This is a representative
+naming, toggles, and scroll-observation boundaries. This is a representative
 coverage matrix, not a guarantee for every Flutter widget or native platform.
+
+## Async and lazy-loading walkthrough
+
+The real [async_flow journey](patrol_recorder/async_flow.yml) starts from the
+normal login screen and demonstrates:
+
+1. Open the asynchronous UI lab and activate the inline Terms link in a keyed
+   paragraph. The link waits locally before enabling the next action.
+2. Select Option 24 from a lazy picker. The list adds ten options after a local
+   delayed `Future`; replay scrolls continuously to the keyed target within the
+   configured scroll limit.
+3. Confirm the choice, long-press the keyed details card, and turn off the
+   `loop_animation` switch. The test wrapper waits for and asserts each outcome.
+4. Use the named `async_loaded` screenshot as a stable capture of the loaded
+   state, not a timestamp/session artifact.
+
+The demo's delays are local fixtures, not external network calls. The recorder
+does not intercept arbitrary application `Future`s or infer business completion;
+add bounded waits/assertions for application-specific outcomes in the preserved
+test wrapper. Continuous animations are not globally settled between generated
+actions.
+
+Inline link text must be unique within its keyed paragraph. For duplicate links,
+use a uniquely keyed paragraph or a keyed `TextButton`/`WidgetSpan`. Scroll replay
+targets a visible item rather than reproducing an exact pixel offset. Drag,
+wheel, accessibility, pan/zoom, and consumed-notification scroll paths are
+covered, but custom painting, opaque platform views, pinch/slider-specific
+gestures, and unsupported custom widgets are not universal guarantees. Stable
+keys improve identity but cannot make every gesture observable.
 
 Screenshots cover visible Flutter content, not full-device or stitched whole-page
 views. Unsupported gestures remain explicit review steps. Read the

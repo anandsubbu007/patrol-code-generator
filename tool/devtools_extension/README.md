@@ -32,19 +32,25 @@ app. Foreign files and concurrent changes are refused. Interrupted sessions stay
 marked recording; the CLI will not generate from unfinished sources. Failures
 retain the draft and expose Retry YAML save.
 
-The automatic recorder uses protocol version 4. Rebuild/reload both the extension
+The automatic recorder uses protocol version 5 and writes schema-3 YAML. Schemas
+1 and 2 remain readable by the generator. Rebuild/reload both the extension
 and recording app after upgrading from the explicit-hook prototype. The generator
 supports key-first scoped selectors, labels/text, and allowlisted public widget
 types, requires review/exclusion of unresolved actions, and emits singleton assertions.
-Coordinates and index fallbacks are not supported. Select the app explicitly when
-DTD lists multiple projects. Recording-only app setup belongs in the example's
+Inline hyperlink text-range taps, long presses, and target-based scrolling use
+public Flutter APIs. Scroll-position listeners complement bubbling notifications,
+so a consuming ancestor does not prevent standard pointer scrolling from being
+observed. Generated Patrol scrolling seeks an identified target with bounded
+continuous movement; it does not reproduce exact offsets. Coordinates and index
+fallbacks are not supported. Select the app explicitly when DTD lists multiple
+projects. Recording-only app setup belongs in the example's
 `patrol_test/recorder_main.dart`, not application `lib/`.
 
 Capture suggests a stable name from active page semantics, route, or widget type.
 The naming dialog supports explicit state names and prevents duplicate names in
 one journey. PNGs use `<screenshots_directory>/<journey>/<name>.png`; small
 adjacent ownership markers allow safe generated-image replacement. Runtime
-session tokens are transient only; schema-2 YAML exports neither session IDs nor
+session tokens are transient only; schema-3 YAML exports neither session IDs nor
 an app bootstrap block. The CLI infers normal main or uses a pubspec override.
 
 The UI does not generate Dart or collect data values. It displays the saved YAML
@@ -52,6 +58,14 @@ path and copies a `dart run patrol_recorder_generator:generate` command. Default
 are optional `pubspec.yaml > recorder_config`, including YAML/screenshot directories.
 The CLI derives the abstract input contract from `{{name}}` references and preserves
 the user's implementation. No custom E2E execution engine is included.
+
+The generator also accepts `wait_timeout_ms` (100-120000; default 15000) and
+`max_scrolls` (1-200; default 60) in `recorder_config`. These bound readiness and
+target scrolling, not arbitrary application futures. The example's local delayed
+operations are fixtures only; they do not contact a network. Custom painting,
+opaque platform views, pinch/slider-specific gestures, and arbitrary custom
+widgets are not universally observable. Keys improve identity but cannot make an
+unsupported gesture observable, and the recorder never edits application source.
 
 `RecorderBackend` separates the DevTools web-only host from the panel, allowing
 widget tests of the real Record dialog, immediate file creation, autosave, same-name
