@@ -3,9 +3,10 @@ import 'dart:typed_data';
 
 import 'package:dtd/dtd.dart';
 import 'package:json_rpc_2/json_rpc_2.dart';
-import 'package:patrol_recorder_generator/file_export.dart';
+import 'package:patrol_recorder_generator/generator.dart';
 
-export 'package:patrol_recorder_generator/file_export.dart';
+export 'package:patrol_recorder_generator/generator.dart'
+    show WorkspaceFiles, ExportResult, exportFiles;
 
 class DtdWorkspaceFiles implements WorkspaceFiles {
   DtdWorkspaceFiles(this.connection);

@@ -1,14 +1,18 @@
-# Milestone 1: integrated technical proof
+# Initial integrated technical proof
 
-**Completed:** 22 October 2026. **Approval boundary:** stop here; M2 is not authorized.
+**Completed:** 22 October 2026. This report records the first integrated proof
+and its original historical scope; it is not a statement of current milestone
+status. See the [roadmap](ROADMAP.md) for current plans.
 
-**Historical report:** the later requested automatic-observation implementation
-removed the explicit hooks described here and moved example recording setup and
-profiles to `patrol_test/`. See the [current results](PHASE_1_PLAN.md#automatic-implementation-results).
-The original M1 outputs remain as historical fixtures.
+**Historical report:** later follow-ups replaced the explicit hooks described
+here and moved example recording setup and profiles to `patrol_test/`. The
+browser-exported files described below are historical evidence and are not
+retained in the current working tree. See the
+[implementation history](IMPLEMENTATION_HISTORY.md#automatic-implementation-results)
+and the [current roadmap](ROADMAP.md) for the later implementation.
 
 This is a working, unpublished proof of concept, not the complete recorder.
-The [plan](PHASE_1_PLAN.md) retains the remaining approval-gated milestones.
+The [roadmap](ROADMAP.md) describes the remaining proposed work.
 
 ## Result
 
@@ -54,7 +58,7 @@ dependency constraints. No Android device or booted iOS simulator was available.
   observed actions, generated Dart/data preview, profile selection, capture,
   authorized workspace export, configuration loading, and Copy Run Command.
   M1 polls snapshots; the full event/lifecycle editor is deferred.
-- [Generator](../tool/patrol_recorder_generator/lib/generator.dart) (subsequently extracted): stable case tags,
+- [Generator](../tool/patrol_recorder_generator/lib/src/generator.dart) (development-only companion): stable case tags,
   semantics identifiers before string keys, normal Patrol APIs, separate editable
   data, named profiles, external secret references, and source formatting.
 - [Exporter](../tool/devtools_extension/lib/src/exporter.dart): permission-bound DTD,
@@ -86,8 +90,8 @@ YAML, and protocol-client dependencies remain in the unpublished tooling app.
 
 ### Persistent output
 
-The real UI export is retained in
-[browser_verified](../example/patrol_test/recorded_journeys/browser_verified/):
+The real UI export was saved at the time under
+`example/patrol_test/recorded_journeys/browser_verified/`:
 
 ```text
 browser_verified_test.dart
@@ -96,11 +100,8 @@ recording.json
 screenshots/session_1792644650631000_step_0003_flutter.png
 ```
 
-The [test](../example/patrol_test/recorded_journeys/browser_verified/browser_verified_test.dart),
-[data](../example/patrol_test/recorded_journeys/browser_verified/browser_verified_data.dart),
-[metadata](../example/patrol_test/recorded_journeys/browser_verified/recording.json),
-and [PNG](../example/patrol_test/recorded_journeys/browser_verified/screenshots/session_1792644650631000_step_0003_flutter.png)
-are real saved outputs, not placeholders.
+Those generated files are no longer present in the working tree; the dimensions,
+hash, and execution results below document the original real outputs.
 
 PNG SHA-256:
 
@@ -247,11 +248,12 @@ was visually verified rather than treating the locator timeout as product succes
   values there or display them outside a `RecorderSensitive` region.
 - Capture is blocked while an explicitly sensitive subtree is mounted. Arbitrary
   sensitive pixels elsewhere cannot be detected automatically.
-- M1 supports explicit taps and string input references only. No generalized long
+- This initial proof supported explicit taps and string input references only. No generalized long
   press, scrolling, navigation observation, automatic selector discovery, or native
   interaction capture is claimed.
 - Full Pause/Resume/Discard, editing/reordering, groups/multiple cases per journey,
-  typed data sets, saved-test browsing/reopening, and selector overrides await M2-M4.
+  typed data sets, saved-test browsing/reopening, and selector overrides were not
+  part of this initial proof.
 - Mobile execution, full-device screenshots, remote/other IDE DTD hosts, and browser
   download persistence remain unverified.
 - No Run button, arbitrary process launching, custom E2E engine, or result feed.
@@ -261,5 +263,6 @@ was visually verified rather than treating the locator timeout as product succes
   placeholder, complete documentation, broader tests/platform matrix, archive
   inspection, and pub.dev dry run remain M5 gates. Nothing was published.
 
-**Next approval requested:** M2's multi-journey model, groups/cases, typed data
-validation, and selector inspection. No M2 implementation has been started.
+**Historical next step:** the original plan proposed a multi-journey model,
+groups/cases, typed data validation, and selector inspection. Refer to the
+current [roadmap](ROADMAP.md) for their present status.

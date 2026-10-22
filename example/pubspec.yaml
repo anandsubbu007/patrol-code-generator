@@ -21,6 +21,10 @@ dev_dependencies:
   patrol: 4.10.0
   patrol_finders: 3.6.0
 
+dependency_overrides:
+  patrol_recorder:
+    path: ..
+
 flutter:
   uses-material-design: true
 

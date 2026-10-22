@@ -3,9 +3,6 @@ import 'dart:typed_data';
 
 import 'package:patrol_recorder/model.dart';
 import 'package:patrol_recorder_generator/generator.dart';
-import 'package:patrol_recorder_generator/journey.dart';
-
-import 'exporter.dart';
 
 class CapturedScreen {
   const CapturedScreen(this.bytes, this.info, {required this.name});

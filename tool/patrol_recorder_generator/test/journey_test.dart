@@ -3,8 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:patrol_recorder/model.dart';
 import 'package:patrol_recorder_generator/generator.dart';
-import 'package:patrol_recorder_generator/journey.dart';
-import 'package:patrol_recorder_generator/local_generation.dart';
+import 'package:patrol_recorder_generator/src/local_generation.dart';
 
 final testApp = RecorderAppConfig(
   appImport: 'package:example/app.dart',

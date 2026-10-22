@@ -27,5 +27,12 @@ migrate_working_dir/
 **/doc/api/
 .dart_tool/
 .flutter-plugins-dependencies
-/build/
+**/build/
 /coverage/
+
+# The compiled DevTools extension is shipped with the package.
+!/extension/
+!/extension/devtools/
+!/extension/devtools/build/
+!/extension/devtools/build/**
+tool/patrol_recorder_generator/build/**

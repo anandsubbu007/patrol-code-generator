@@ -5,10 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:patrol_recorder/model.dart';
 import 'package:patrol_recorder_generator/generator.dart';
-import 'package:patrol_recorder_generator/journey.dart';
 import 'package:patrol_recorder_devtools/recorder_panel.dart';
 import 'package:patrol_recorder_devtools/src/backend.dart';
-import 'package:patrol_recorder_devtools/src/exporter.dart';
 import 'package:patrol_recorder_devtools/src/recording_writer.dart';
 
 class TestFiles implements WorkspaceFiles {
@@ -312,6 +310,11 @@ void main() {
       config: config,
       files: backend.files,
       app: app,
+    );
+    expect(
+      writer.generateCommand,
+      'dart run patrol_recorder_generator:generate --journey ui_flow'
+      ' --recordings-directory patrol_recorder',
     );
     await writer.persist(
       await backend.command('start'),

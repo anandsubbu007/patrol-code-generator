@@ -3,8 +3,10 @@
 This unpublished Flutter web app uses public `devtools_extensions` and DTD APIs.
 The root package ships its compiled assets under `extension/devtools/build`.
 YAML schema/configuration is shared with the development-only
-[generator package](../patrol_recorder_generator/README.md), not duplicated in the UI.
-Formatter/analyzer dependencies do not enter the app recorder runtime.
+[generator library](../patrol_recorder_generator/lib/generator.dart), not
+duplicated in the UI. The runtime recorder has no generator dependencies.
+The extension source app depends on the generator to build its compiled assets;
+users of the recorder receive those assets without this source dependency.
 
 ```sh
 flutter pub get

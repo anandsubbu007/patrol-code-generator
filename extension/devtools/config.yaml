@@ -1,5 +1,5 @@
 name: patrol_recorder
-issueTracker: https://example.invalid/patrol-recorder/issues
+issueTracker: https://github.com/anandsubbu007/patrol-code-generator/issues
 version: 0.0.1
 materialIconCodePoint: '0xe047'
 requiresConnection: false

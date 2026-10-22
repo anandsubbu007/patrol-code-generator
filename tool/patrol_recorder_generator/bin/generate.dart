@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:args/args.dart';
-import 'package:patrol_recorder_generator/local_generation.dart';
+import 'package:patrol_recorder_generator/src/local_generation.dart';
 
 Future<void> main(List<String> arguments) async {
   final parser = ArgParser()

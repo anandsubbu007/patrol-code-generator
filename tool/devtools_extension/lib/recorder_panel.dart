@@ -283,37 +283,40 @@ class _RecorderPanelState extends State<RecorderPanel> {
               style: const TextStyle(color: Colors.red),
             ),
           if (_notice != null) Text(_notice!),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              FilledButton(
-                onPressed:
-                    !_busy &&
-                        _connected &&
-                        (state != 'recording' || writer == null)
-                    ? () => _perform(_start)
-                    : null,
-                child: const Text('Record'),
-              ),
-              OutlinedButton(
-                onPressed: !_busy && _connected && state == 'recording'
-                    ? () => _perform(_stop)
-                    : null,
-                child: const Text('Stop recording'),
-              ),
-              OutlinedButton(
-                onPressed: !_busy && _connected
-                    ? () => _perform(_capture)
-                    : null,
-                child: const Text('Capture visible screen'),
-              ),
-              if (_saveError != null)
-                OutlinedButton(
-                  onPressed: _busy ? null : () => _perform(_persist),
-                  child: const Text('Retry YAML save'),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                FilledButton(
+                  onPressed:
+                      !_busy &&
+                          _connected &&
+                          (state != 'recording' || writer == null)
+                      ? () => _perform(_start)
+                      : null,
+                  child: const Text('Record'),
                 ),
-            ],
+                OutlinedButton(
+                  onPressed: !_busy && _connected && state == 'recording'
+                      ? () => _perform(_stop)
+                      : null,
+                  child: const Text('Stop recording'),
+                ),
+                OutlinedButton(
+                  onPressed: !_busy && _connected
+                      ? () => _perform(_capture)
+                      : null,
+                  child: const Text('Capture visible screen'),
+                ),
+                if (_saveError != null)
+                  OutlinedButton(
+                    onPressed: _busy ? null : () => _perform(_persist),
+                    child: const Text('Retry YAML save'),
+                  ),
+              ],
+            ),
           ),
           if ((_busy && !_dialogOpen) || _saving)
             const LinearProgressIndicator(),

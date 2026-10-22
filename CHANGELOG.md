@@ -1,5 +1,10 @@
-## Unreleased
+## 0.0.1
 
+* Keep the recorder lightweight: generation lives in the separate
+  `patrol_recorder_generator` development dependency, with no generator/analyzer
+  dependency in the runtime recorder package.
+* Publication preparation: installation and release guides, screenshots,
+  BSD-3-Clause licensing, package metadata, and bundled DevTools assets.
 * Runtime protocol 5 and YAML schema 3 add hyperlink text-range actions,
   long-press recording, target-anchored scrolling, and bounded replay readiness;
   schema 1 and 2 journeys remain readable.
@@ -11,9 +16,6 @@
 * The async example now asserts its delayed selection, long-press outcome, and
   animation switch state with bounded waits. Documentation describes supported
   interactions and limits.
-
-## 0.0.1
-
 * Stable page-semantic/route/widget screenshot names with editable state names,
   collision validation, and owned-image replacement without session folders.
 * YAML schema 2 omits session IDs and app bootstrap metadata; legacy schema 1
@@ -25,7 +27,7 @@
 * Named recordings now persist as machine-owned YAML under `patrol_recorder/`
   immediately on Record, autosave while active, and finalize on Stop.
 * Dynamic input references use `{{name}}`; recorded values/defaults are never
-  included. A separate local CLI generates Patrol code and abstract Dart inputs.
+  included. The companion CLI generates Patrol code and abstract Dart inputs.
 * Re-record the same journey name to replace its YAML; regenerate only owned
   `.g.dart` files while preserving user input providers and test wrappers.
 * Screenshot and YAML directories are configurable in pubspec/DevTools.

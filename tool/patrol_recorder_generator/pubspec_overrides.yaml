@@ -1,0 +1,3 @@
+dependency_overrides:
+  patrol_recorder:
+    path: ../..

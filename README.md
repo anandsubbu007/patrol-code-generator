@@ -6,7 +6,7 @@ and supply dynamic values through your own **Dart input implementation**.
 ```text
 DevTools Record -> patrol_recorder/<journey>.yml
                          |
-              run the local code generator
+              dart run patrol_recorder_generator:generate
                          |
               Patrol steps + abstract inputs
                          |
@@ -15,9 +15,94 @@ DevTools Record -> patrol_recorder/<journey>.yml
 
 No recording calls are needed in application button/text-field callbacks.
 Recording setup stays in a test-only entrypoint, not application `lib/`.
-This is an **unpublished prototype**, not a universal or production-certified
+This is an **experimental 0.0.1 package**, not a universal or production-certified
 recorder. Tested: Flutter 3.47.7 / Dart 3.13.5, DevTools 2.60.0, Patrol 4.10.0,
 Patrol CLI 4.8.0, Node 22.23.4, Flutter web.
+
+## At a glance
+
+* Observe supported Flutter controls without adding recording callbacks.
+* Save editable-test source as named YAML journeys; text values become typed
+  input references, never recorded credentials.
+* Generate ordinary Patrol code with the development-only
+  `patrol_recorder_generator` companion.
+* Keep your input providers, setup, and outcome assertions when regenerating.
+* Capture visible Flutter screens with masking for marked private regions.
+
+**Verified recording/replay platform: Flutter web in Chrome-compatible browsers.**
+Android, iOS, desktop, native dialogs, and arbitrary custom gestures have not been
+validated for this release. Do not infer their support from Patrol's own platform
+coverage. Recording requires debug mode; keep the generator and Patrol as dev
+dependencies. The recorder can also be dev-only when imported only by a
+recording entrypoint outside application `lib/`.
+Patrol Recorder is an independent project, not an official Patrol product.
+
+## Screenshots and demo
+
+These are real captures of the local example using fictional data, not mockups.
+
+![Connected Patrol Recorder DevTools panel](doc/images/recorder.png)
+
+| Start a journey | Reach an outcome |
+| --- | --- |
+| ![Demonstration login](doc/images/login.png) | ![Demo account overview](doc/images/account.png) |
+
+![Repeated controls requiring scoped selectors](doc/images/repeated-controls.png)
+
+See the [demo walkthrough](doc/DEMO.md) for media, capture instructions, and the
+record -> YAML -> generate -> replay script. Screenshots are optional; a video
+is not a pub.dev publication requirement.
+The [17-second example video](https://github.com/anandsubbu007/patrol-code-generator/blob/main/doc/media/example-walkthrough.webm)
+shows the app UI only, not a complete recording/replay verification.
+
+## Install from pub.dev
+
+The following hosted setup applies **after 0.0.1 is published**.
+Until then, use the [repository setup](#setup-and-record).
+
+In your Flutter app:
+
+```sh
+flutter pub add --dev patrol_recorder:^0.0.1 patrol_recorder_generator:^0.0.1 patrol:4.10.0
+dart pub global activate patrol_cli 4.8.0
+```
+
+If application widgets import recorder APIs (for example `RecorderSensitive`),
+put **only the recorder** in regular dependencies instead:
+
+```yaml
+dependencies:
+  flutter:
+    sdk: flutter
+  patrol_recorder: ^0.0.1
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  patrol_recorder_generator: ^0.0.1
+  patrol: 4.10.0
+```
+
+The recorder has only the Flutter SDK as a direct runtime dependency. The
+generator owns `analyzer`, `dart_style`, `yaml`, and `args`. These are regular
+dependencies of the tooling package so its CLI works for consumers, but the
+tooling package itself is an app **dev dependency**. Moving code out of `lib/`
+alone would not provide this separation.
+
+Use Flutter >=3.47.0 / Dart >=3.13.0 (the bundled example requires Dart >=3.13.5).
+Install Node 22 for the tested Patrol web workflow. Hosted users receive the
+compiled DevTools extension; **no repository clone or extension build is needed**.
+
+1. Add a [recording-only entrypoint](#use-in-your-own-app) wrapping your root
+   widget with `RecorderScope`.
+2. Run `flutter run --target patrol_test/recorder_main.dart -d chrome --print-dtd`.
+3. Open the printed DevTools URL, enable **patrol_recorder**, record a named
+   journey, stop it, and review its actions.
+4. Run `dart run patrol_recorder_generator:generate --journey login` in the app.
+5. Implement the generated input getters, add business assertions, and run the
+   test with Patrol CLI, not `flutter test`.
+
+The [example](example/README.md) includes a runnable app, recording entrypoint,
+saved YAML, generated steps, and fictional input implementations.
 
 ## Guide
 
@@ -29,6 +114,8 @@ Patrol CLI 4.8.0, Node 22.23.4, Flutter web.
 6. [Configuration and screenshots](#configuration-and-screenshots)
 7. [Use in your own app](#use-in-your-own-app)
 8. [Limits and troubleshooting](#limits-and-troubleshooting)
+9. [License and support](#license-and-support)
+10. [Publishing checklist](doc/PUBLISHING.md)
 
 ## Architecture reference: Maestro
 
@@ -47,7 +134,7 @@ Maestro's platform coverage and maturity do not imply equivalent support here.
 
 ## Setup and record
 
-### 1. Install and build
+### 1. Repository development: install and build
 
 Use a Flutter-supported Chrome-compatible browser and Node 22 on PATH. Check
 `flutter doctor`, `flutter devices`, and `node --version`.
@@ -57,6 +144,9 @@ From this repository root:
 ```sh
 flutter pub get
 dart pub global activate patrol_cli 4.8.0
+cd tool/patrol_recorder_generator
+flutter pub get
+cd ../..
 cd tool/devtools_extension
 flutter pub get
 dart run devtools_extensions build_and_copy --source=. --dest=../../extension/devtools
@@ -66,9 +156,10 @@ flutter pub get
 ```
 
 These commands finish in the example app. The extension uses packaged local
-CanvasKit assets, not a renderer CDN. The generator package is resolved as an app
-**development dependency**; formatter/YAML dependencies stay out of the runtime
-recorder package.
+CanvasKit assets, not a renderer CDN. The example declares both local packages
+as dev dependencies. A local override resolves the generator's hosted recorder
+dependency to the same checkout. The published runtime recorder does not depend
+on the generator or formatter/analyzer/YAML packages.
 
 ### 2. Launch the test-only recording entrypoint
 
@@ -284,13 +375,9 @@ initializes the app service required by `patrolTest`; bypassing it can cause
 `LateInitializationError: Field 'patrolAppService' has not been initialized`.
 Widget tests in `test/` still use the normal Flutter test runner.
 
-For this repository's example, open the repository root in VS Code and make a
-journey's `*_test.dart` file active. Press **Cmd+Shift+B** (macOS) or
-**Ctrl+Shift+B** (Windows/Linux) to run **Patrol: Run current test**. The
-[workspace task](.vscode/tasks.json) supplies the active file to Patrol CLI,
-uses the example directory, and runs headless Chrome with the `demo` profile.
-Save changes first and keep Dart/Flutter/Node 22 on VS Code's PATH. Results appear
-in the task terminal; input-provider wiring is still required.
+In VS Code, run these commands in the integrated terminal or configure your own
+task invoking Patrol CLI with the app directory as its working directory. This
+package does not install IDE tasks or replace the standard test runner.
 
 Patrol launches a separate app. The recording connection is not assumed to
 survive; results remain in the terminal, not an automatic DevTools result feed.
@@ -387,23 +474,27 @@ Avoid concurrent recording/generation/editing of the same journey.
 
 ## Use in your own app
 
-Add both local packages as development dependencies (neither is published):
+After publication, for a test-only recording entrypoint:
 
 ```yaml
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  patrol_recorder:
-    path: /absolute/path/to/patrol-code-generator
-  patrol_recorder_generator:
-    path: /absolute/path/to/patrol-code-generator/tool/patrol_recorder_generator
+  patrol_recorder: ^0.0.1
+  patrol_recorder_generator: ^0.0.1
   patrol: 4.10.0
 
 patrol:
   test_directory: patrol_test
 ```
 
-Build the extension once as above. Create `patrol_test/recorder_main.dart`:
+If application `lib/` imports recorder widgets, move `patrol_recorder` to
+`dependencies`, keeping the generator under `dev_dependencies`.
+For unpublished repository development use the two local paths and recorder
+override shown in the example pubspec. Only source contributors need to build
+the extension.
+
+Create `patrol_test/recorder_main.dart`:
 
 ```dart
 import 'package:flutter/foundation.dart';
@@ -424,6 +515,26 @@ Adapt the import and root widget creation in this recording-only entrypoint.
 You can also pass your root widget directly instead of a factory. No data profiles or
 per-button/per-field hooks are required. Names for non-keyed input fields are
 allocated automatically, such as `{{input_0001}}`.
+
+### Public API
+
+Import `package:patrol_recorder/patrol_recorder.dart` only from your debug
+recording entrypoint:
+
+| API | Purpose |
+| --- | --- |
+| `RecorderController()` | Owns a recording's state and automatic observations; default limit is 500 steps |
+| `RecorderScope(controller: ..., child: ...)` | Wraps the app root and installs debug observation/capture |
+| `RecorderSensitive(child: ...)` | Marks a subtree for screenshot masking; interactions may still be observed |
+| `RecorderIgnore(child: ...)` | Excludes subtree interactions and masks its screenshot region |
+| `controller.state`, `steps`, `error` | Inspect recording status, read-only actions, and visible failure state |
+| `controller.start()`, `stop()` | Programmatic lifecycle; normally driven by the DevTools panel |
+| `controller.dispose()` | Releases controller resources when its owner no longer needs it |
+
+The separate `package:patrol_recorder_generator/generator.dart` library exposes YAML
+journey parsing, generation, and workspace export contracts for tool integrations.
+Normal users should invoke `dart run patrol_recorder_generator:generate`; importing the
+app-side recorder library does not import the generator or its filesystem CLI.
 
 ### Why the generator needs an app startup path
 
@@ -559,12 +670,27 @@ flutter test
 
 Also verify a real named recording -> YAML -> CLI generation -> implemented inputs
 -> Patrol run. Unit tests/builds alone do not establish that entire workflow.
-The [generator package guide](tool/patrol_recorder_generator/README.md) documents
-the CLI, and the [implementation plan](docs/PHASE_1_PLAN.md) records staged evidence.
+The [generation guide](#generate-patrol-code) documents the companion CLI.
+Historical implementation notes remain in the source repository.
+
+## License and support
+
+Original code is licensed under [BSD-3-Clause](LICENSE), including the companion generator.
+Redistributions must retain the copyright notice, license conditions, and
+disclaimer; the license does not grant endorsement rights. Bundled third-party
+extension assets retain their own licenses in
+[`extension/devtools/build/assets/NOTICES`](extension/devtools/build/assets/NOTICES).
+Patrol and Flutter are separate projects with their own licensing.
+
+Report bugs and feature requests in the
+[issue tracker](https://github.com/anandsubbu007/patrol-code-generator/issues).
+Include Flutter/Dart, DevTools and Patrol versions, browser, sanitized YAML,
+reproduction steps, and the complete error. Remove credentials, screenshots of
+private content, and authenticated VM Service/DTD URLs before sharing.
 
 ## Publication status
 
-Publication remains disabled (`publish_to: none`). No package/release was published.
-The provisional names, support metadata/issue tracker, platform matrix, archive
-inspection, and pub.dev readiness still require work. Original code is
-BSD-3-Clause; dependency/licensing considerations are documented in the plan.
+Both packages are prepared for **0.0.1**; preparation is not publication.
+Follow the [release checklist](doc/PUBLISHING.md): publish the lightweight recorder
+first, then validate and publish the generator against its hosted dependency.
+The example and extension source app intentionally remain unpublished.

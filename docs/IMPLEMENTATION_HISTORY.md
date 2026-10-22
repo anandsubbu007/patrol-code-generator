@@ -1,33 +1,17 @@
-# Phase 1: Flutter DevTools Patrol Recorder
+# Patrol Recorder: research and implementation history
 
-**Status:** Research and Milestone 1 completed on 22 October 2026. Stopped pending approval for Milestone 2. [Milestone 1 evidence](MILESTONE_1_RESULTS.md).  
+This document preserves the original research, design decisions, and detailed
+implementation evidence. It is not the current task list. See the
+[roadmap](ROADMAP.md) for current status, milestones, and open todos, and the
+[integrated proof report](INTEGRATED_PROOF_RESULTS.md) for the initial real-host proof.
 
-**Implementation follow-up:** The requested bounded automatic recorder is
-implemented. Protocol 5/schema 3 adds inline hyperlink actions, long presses,
-target-based scroll replay, and configurable readiness limits. Scroll observation
-includes public position listeners; recording setup and profiles live in
-`example/patrol_test/`, not application `lib/`. See
-[automatic implementation results](#automatic-implementation-results) and the
-current follow-up below.
+**Record date:** 22 October 2026. **Publication status:** unpublished.
 
-**Research date:** 22 October 2026.  
-**Working name:** `patrol_recorder` (name availability and naming permission not yet checked).
-
-**Current workflow revision:** Named recording now writes
-`patrol_recorder/<journey>.yml` immediately and autosaves it. A separate development
-CLI generates Patrol Dart and abstract inputs from stopped YAML journeys.
-Re-recording the same name replaces the YAML, never the user's Dart provider.
-Dynamic inputs use `{{name}}`; screenshot/YAML/output paths have optional pubspec
-defaults. This supersedes the prior direct-generation dialog described historically
-below. See [YAML source and generation workflow](#yaml-source-and-generation-workflow)
-and the [current user guide](../README.md).
-
-**Stable-capture/bootstrap follow-up:** New schema-3 YAML omits both session IDs
-and the app import/builder block; schemas 1 and 2 remain readable. Screenshots use semantic page/state names under
-`<screenshots_directory>/<journey>/<name>.png`, with user overrides and safe
-replacement. The generator infers normal `lib/main.dart -> main()` and allows a
-one-time pubspec override for custom test initialization. The example now includes
-an animated/multi-screen UI laboratory. See [stable captures and complex UI](#stable-captures-and-complex-ui).
+This is an archival record of research, design, and successive implementation
+snapshots, not the current todo list. Later sections supersede earlier proposals
+where they describe implemented behavior. See the [roadmap](ROADMAP.md) for
+current status and open work, and the [integrated proof report](INTEGRATED_PROOF_RESULTS.md)
+for the initial real-host verification.
 
 ## 1. Recommendation and scope
 
@@ -39,7 +23,7 @@ The repository was an empty directory at initial inspection. The first research
 delivery added only this plan; its experiments ran in an isolated session directory.
 The subsequently approved M1 implementation now provides the package, extension,
 example, and tests. Section 2 preserves the initial research evidence; the separate
-[M1 results](MILESTONE_1_RESULTS.md) document the integrated implementation.
+[integrated proof report](INTEGRATED_PROOF_RESULTS.md) documents the original implementation.
 
 ### In scope
 
@@ -639,7 +623,7 @@ packages/
     test/
     pubspec.yaml
 docs/
-  PHASE_1_PLAN.md
+  IMPLEMENTATION_HISTORY.md
 ```
 
 Generated user output:
@@ -814,29 +798,11 @@ Investigate case selection using stable unique Patrol test tags and the public
 execution separate: a Patrol run can restart the app and invalidate the recording
 connection. M1 offers copyable commands, not a Run button or automatic result feed.
 
-### M1 gate outcomes
+### Initial integrated proof
 
-- **Passed:** real DevTools extension discovery, DWDS service-extension commands,
-  and permission-bound project discovery/export through the Flutter-managed DTD.
-- **Passed:** two input-reference callbacks and one tap from browser interaction
-  with the running example; separate editable data; generated Patrol source.
-- **Passed:** a real 2392 x 1669 Flutter-content PNG exported with source, data, and
-  metadata. The PNG was independently decoded and its chunk integrity checked.
-- **Passed:** official Patrol CLI 4.8.0 web execution. The full suite discovered
-  exactly three targets and passed all three. A case tag filtered that suite to
-  exactly one passing test using the `secondary` profile.
-- **Passed:** formatting, analysis, 16 unit/widget tests, a second three-test data
-  profile run, extension web build, and official extension validation.
-- **Constraint discovered:** the DTD host ignores read encoding. Text export has
-  exact UTF-8 readback; PNG export reports acknowledged write and file existence,
-  not binary-readback verification. Multi-file export is not transactional.
-- **Environment workaround:** the official Chromium installer stalled under Node
-  26 and succeeded under Node 22.23.4. No Patrol/Playwright code was modified.
-- **Still unverified/deferred:** mobile runs, full-device screenshots, browser
-  download persistence, broader host/platform support, and all M2-M5 features.
-
-Commands, saved artifacts, failures, and verification boundaries are recorded in
-[MILESTONE_1_RESULTS.md](MILESTONE_1_RESULTS.md).
+The real-host evidence, commands, saved-output details, failures, and verification
+boundaries for the initial integrated proof are recorded in the
+[integrated proof report](INTEGRATED_PROOF_RESULTS.md).
 
 ### Automatic implementation results
 
@@ -869,7 +835,7 @@ its ordinary `obscureText` password field is detected automatically.
 - [Model](../lib/model.dart): protocol 2, typed key/semantics/field-label/text/type
   selectors, one unique ancestor scope, unresolved reasons, and observation
   provenance. Old protocol-1 session reopening is not supported.
-- [Generator](../tool/patrol_recorder_generator/lib/generator.dart) (subsequently extracted): no coordinate
+- [Generator](../tool/patrol_recorder_generator/lib/src/generator.dart) (development-only companion): no coordinate
   or index representation; every generated action waits for existence and
   asserts `findsOneWidget` before acting. Unresolved steps refuse generation.
 - Keyless duplicate buttons can resolve by text or type inside a stable ancestor;
@@ -904,12 +870,11 @@ its ordinary `obscureText` password field is detected automatically.
 | Patrol replay | Exact automatic export passed with `secondary`; entire discovered suite passed 4/4 with `demo`, without duplicate execution |
 | Saved image | 2392 x 1669 RGBA PNG, 37568 bytes; signature, chunk CRCs, decompression, and metadata dimensions independently verified |
 
-The real output is retained at
-[automatic_verified](../example/patrol_test/recorded_journeys/automatic_verified/).
-Its [test](../example/patrol_test/recorded_journeys/automatic_verified/automatic_verified_test.dart)
-contains three key selectors and three singleton assertions. The
-[metadata](../example/patrol_test/recorded_journeys/automatic_verified/recording.json)
-contains no typed values or pointer coordinates. PNG SHA-256:
+At that milestone, the real output was saved under
+`example/patrol_test/recorded_journeys/automatic_verified/`. Those generated
+files are no longer present in the working tree. The saved test contained three
+key selectors and three singleton assertions; its metadata contained no typed
+values or pointer coordinates. PNG SHA-256:
 `b1e5298e36d5208af86493787bd35dead4a33f612f2ea08f22b0a0a1a3711df9`.
 
 Commands from `example`, with Node 22 on PATH:
@@ -1002,13 +967,13 @@ preserved files; widget tests of the actual form, validation, screenshots,
 explicit exclusions and final file paths. The extension UI is tested against an
 injected backend, with web-only DevTools communication isolated in its adapter.
 
-The actual DevTools proof saved
-[guided_login](../example/patrol_test/recorded_journeys/guided_login/): four Dart
-files and two PNGs captured during recording, including a masked login screen
-before the first action. The exported test analyzed cleanly and passed official
-Patrol web execution with the `secondary` profile. Real DevTools regeneration
-preserved the user input file byte-for-byte and displayed saved/preserved paths
-and run instructions. Missing-input validation was also visible in the real UI.
+The actual DevTools proof saved a `guided_login` journey at that milestone: four
+Dart files and two PNGs captured during recording, including a masked login
+screen before the first action. Those generated files are no longer present in
+the working tree. The exported test analyzed cleanly and passed official Patrol
+web execution with the `secondary` profile. Real DevTools regeneration preserved
+the user input file byte-for-byte and displayed saved/preserved paths and run
+instructions. Missing-input validation was also visible in the real UI.
 
 Final checks passed: **27 runtime/API tests, 14 generator/UI/export tests, and 6
 example tests (47 total)**; clean analysis of all three packages; extension build
@@ -1088,10 +1053,11 @@ command includes the selected YAML directory. Screenshots save immediately to
 the YAML. Re-recording does not delete archived PNGs. The CLI checks referenced
 screenshots exist rather than silently ignoring broken artifacts.
 
-**Package decision:** the shared schema/generator and executable live in the
-unpublished [patrol_recorder_generator](../tool/patrol_recorder_generator/)
-development package. The extension and example both depend on it, avoiding two
-generators or an app-runtime dependency on formatter/analyzer/YAML tooling.
+**Updated package decision:** the schema/generator and executable live in
+`patrol_recorder_generator`, an app development dependency. The lightweight
+`patrol_recorder` owns widgets and shared runtime models and depends only on
+Flutter. Formatter/analyzer/YAML dependencies belong to the generator manifest,
+not the runtime recorder.
 The CLI itself uses only Dart APIs; repository resolution/tests use Flutter tooling
 because the shared model belongs to the Flutter runtime package. This is a narrow
 code-generation companion, not the optional process-execution bridge or a runner.
@@ -1186,7 +1152,8 @@ custom runtime config should move intentional custom bootstrap settings to pubsp
 The test-only example entrypoint now uses `RecorderController()` without duplicate
 bootstrap metadata. The app's normal `main()` and root widget remain ordinary
 application code. The analyzer was already a formatter dependency; it is now
-declared directly in the development-only generator package, not the recorder runtime.
+declared directly in `patrol_recorder_generator` for its development CLI. The
+runtime recorder does not depend on analyzer or generator code.
 
 **Expanded example coverage**
 
@@ -1255,15 +1222,13 @@ passed together in headless Chrome (**3/3**), including the async journey's
 bounded final assertions. These are current results, distinct from historical
 milestone counts above. Mobile/device validation was not performed.
 
-## 15. Approval boundary
+## 15. Historical approval boundary
 
-**M1 and the requested bounded automatic-observation follow-up are complete.**
-Stop before M2 and wait for approval.
-The historical research results in section 2 remain distinct from the integrated
-implementation evidence. No publishing or external publication is authorized.
-The follow-up also isolates recording setup/profile data under the example's
-`patrol_test/` directory. It does not authorize implementing the broader M2-M5
-editor/execution workflow or publishing the package.
+At the time of this record, the initial integrated proof and bounded
+automatic-observation follow-up were complete, and the broader M2-M5 editor and
+execution workflow remained approval-gated. See the [current roadmap](ROADMAP.md)
+for the active milestone status and next steps. No package publication is
+authorized by this record.
 
 ## Sources
 

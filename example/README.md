@@ -21,8 +21,15 @@ flutter run --target patrol_test/recorder_main.dart -d chrome --print-dtd
 ```
 
 Tested with Flutter 3.47.7, Dart 3.13.5, DevTools 2.60.0, Node 22.23.4 and Patrol
-4.10.0 / CLI 4.8.0. Both recorder and generator are development dependencies.
+4.10.0 / CLI 4.8.0. Recorder and generator are separate dev dependencies.
 The normal [main entrypoint](lib/main.dart) does not start the recorder.
+
+This repository example uses local recorder/generator paths and a recorder
+override so both tools share the checkout rather than resolving a hosted copy.
+For a separate app installed from pub.dev, use the
+[hosted installation guide](../README.md#install-from-pubdev) instead; compiled
+DevTools assets are included in the recorder package.
+See the [screenshots and demo walkthrough](../doc/DEMO.md).
 
 ## Record -> YAML
 
@@ -51,8 +58,8 @@ configuration. A custom test factory can be configured once in pubspec if needed
 
 ## YAML -> Dart
 
-The generator is a development dependency of the **example app**, not the
-repository-root recorder package. Run it from the example directory:
+The generator is a separate development dependency of the example app.
+Run it from the example directory:
 
 ```sh
 cd example
@@ -95,26 +102,11 @@ Real secrets must come from your private test provider.
 
 ## Run and maintain
 
-### One-shortcut run in VS Code
+### Run through Patrol CLI
 
-Open the repository root (`patrol-code-generator`) as your VS Code workspace.
-Open a journey's `*_test.dart` file, then press **Cmd+Shift+B** on macOS
-(**Ctrl+Shift+B** on Windows/Linux). The workspace's default build task,
-**Patrol: Run current test**, runs that file through Patrol CLI in headless Chrome
-with `RECORDER_PROFILE=demo`. Results and failures appear in the dedicated task
-terminal. No terminal command or target-path editing is needed between runs.
-
-You can also select **Terminal > Run Task > Patrol: Run current test**. Keep the
-test entrypoint active, not its generated steps/input file. Save your changes
-before running. Dart, Flutter, and Node 22 must be available on VS Code's PATH;
-if you change PATH, restart VS Code. Only one instance runs at a time.
-
-The task is for Patrol tests, not ordinary widget tests or other active files.
-It uses the existing input provider; it does not fill in placeholder getters.
-To use another profile/device, edit the arguments in the
-[workspace task](../.vscode/tasks.json) or use the CLI below.
-
-### Command-line alternative
+Run from the example directory, including in VS Code's integrated terminal.
+You can configure your own IDE task for this command; the package does not
+install a workspace task or change the standard IDE test buttons.
 
 ```sh
 flutter analyze
@@ -144,8 +136,8 @@ dart pub global run patrol_cli:main test \
 
 Before replay, implement every getter in that journey's user-owned input provider.
 New providers initially throw until connected. The
-[login_try provider](patrol_test/recorded_journeys/login_try/login_try_inputs.dart)
-uses the fictional demo email and a synthetic obscured-field value for this
+[yaml_login provider](patrol_test/recorded_journeys/yaml_login/yaml_login_inputs.dart)
+shows how to wire fictional demo email and note fixtures for this
 non-authenticating local app. For real apps, connect your private test provider;
 do not put real credentials in YAML or generated files.
 

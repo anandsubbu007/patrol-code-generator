@@ -1,7 +1,24 @@
 name: patrol_recorder
-description: Debug-only Flutter interaction recording for editable Patrol tests.
+description: Lightweight debug Flutter interaction recording in DevTools with reference-only YAML journeys for editable Patrol tests.
 version: 0.0.1
-publish_to: none
+repository: https://github.com/anandsubbu007/patrol-code-generator
+issue_tracker: https://github.com/anandsubbu007/patrol-code-generator/issues
+topics:
+  - testing
+  - devtools
+  - patrol
+  - recording
+platforms:
+  web:
+screenshots:
+  - description: Connected Patrol Recorder DevTools extension ready to record.
+    path: doc/images/recorder.png
+  - description: Local demonstration login used to record a Flutter journey.
+    path: doc/images/login.png
+  - description: Account overview reached by the demonstration journey.
+    path: doc/images/account.png
+  - description: Repeated controls with ancestor-scoped selectors.
+    path: doc/images/repeated-controls.png
 environment:
   sdk: ^3.13.0
   flutter: '>=3.47.0'
