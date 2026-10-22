@@ -1,13 +1,10 @@
-# Runnable recorder example
+# Runnable YAML recorder example
 
-This is a local demonstration, **not authentication**. No backend is contacted.
-The `.invalid` accounts in [demo_profiles.dart](patrol_test/demo_profiles.dart) are fictional.
-Never enter real credentials. The optional password field exists to demonstrate
-reference-only recording and screenshot exclusion, not to authenticate anyone.
+This is a local demonstration, not authentication. No backend is contacted.
+Use only fictional data. The [app](lib/app.dart) contains no recorder imports,
+test profiles, or per-action recording callbacks.
 
 ## Setup
-
-Use Flutter 3.47.7 / Dart 3.13.5 and Node 22.23.4 for the tested Patrol web runner.
 
 From the repository root:
 
@@ -20,168 +17,120 @@ dart run devtools_extensions validate --package=../..
 cd ../../example
 flutter pub get
 dart pub global activate patrol_cli 4.8.0
-```
-
-If the installed `patrol` command is not on PATH, add the pub-cache executable
-directory to your terminal's PATH, or replace `patrol` with
-`dart pub global run patrol_cli:main` in the commands below.
-
-```sh
 flutter run --target patrol_test/recorder_main.dart -d chrome --print-dtd
 ```
 
-Open the DevTools URL printed by Flutter. Enable **patrol_recorder** through the
-DevTools extension enablement prompt. The package must be an actual dependency of
-the app's development dependencies, as in this example's pubspec.
+Tested with Flutter 3.47.7, Dart 3.13.5, DevTools 2.60.0, Node 22.23.4 and Patrol
+4.10.0 / CLI 4.8.0. Both recorder and generator are development dependencies.
+The normal [main entrypoint](lib/main.dart) does not start the recorder.
 
-All recording setup and shared test defaults live under `patrol_test/`:
+## Record -> YAML
 
-- [recorder_main.dart](patrol_test/recorder_main.dart): debug-only app wrapper and
-  generator configuration. It is not a discoverable `*_test.dart` file.
-- [demo_profiles.dart](patrol_test/demo_profiles.dart): fictional public test data.
-- `recorded_journeys/`: independently editable generated tests and data.
+1. Open the printed real DevTools URL and enable **patrol_recorder**.
+2. Click **Record**, choose this example project and a journey name such as
+   `my_login`, then **Record and save YAML**.
+3. Confirm `patrol_recorder/my_login.yml` exists immediately. It starts with no
+   steps and `state: recording`.
+4. Edit Email/Note and activate **Open demo account**. The file updates automatically
+   with `{{email}}` and `{{note}}` references; typed values are not exported.
+5. Optionally **Capture visible screen** before/during/after actions. The password
+   field is automatically masked. Confirm the suggested page name or a stable
+   state name, then **Save screenshot**. There is no session/timestamp directory.
+6. **Stop recording**, review any highlighted steps, and confirm **Journey YAML saved**.
+7. Copy the generator command and run it from this example directory.
 
-The production [lib/main.dart](lib/main.dart) simply runs the application.
-[lib/app.dart](lib/app.dart) has no recorder imports, profiles, or per-action hooks.
-Its fields start empty. Ordinary `flutter run -d chrome` does not start recording.
+Optional defaults, including `recordings_directory`, `screenshots_directory`, and
+the generated Dart `output_directory`, live in [pubspec.yaml](pubspec.yaml).
+There is no standalone recorder config file. The YAML is machine-maintained;
+recording the same name again replaces it.
 
-For a headless development/automation check, Flutter also supports
-`--web-run-headless --web-browser-debug-port=9235 --web-port=8765`.
-These are Flutter's public Chrome debugging flags, not recorder APIs.
+New YAML contains neither `session_id` nor an `app` block. The CLI infers the
+normal [lib/main.dart](lib/main.dart) entrypoint from the app package and awaits
+it before replay. The recording wrapper needs no duplicated import/builder
+configuration. A custom test factory can be configured once in pubspec if needed.
 
-## Record a journey
-
-1. Open the extension in real DevTools. It should show **Connected - ready**.
-2. Click **Start**. In the running app, edit Email and Note using fictional values.
-   The app-level observer discovers the fields automatically and records input
-   references, **not** the typed values. No per-field callback was added.
-3. Click **Open demo account**. The app navigates to a page that shows no input values.
-4. In the extension, click **Stop**. The preview contains normal Patrol actions,
-   with the values read from a separate data file.
-5. Choose a fresh Journey ID, such as `my_login`, and a `demo` or `secondary` profile.
-   Existing sample files named `login`/`accounts` will not be overwritten.
-6. Click **Capture Flutter content**. The login form deliberately blocks this
-   operation while its obscured password field is mounted; the account page permits it.
-7. Click **Refresh export projects** and select this example project, not the
-   recorder package or the extension's source project.
-8. Optionally click **Load recorder_config.yaml**. It resets IDs/profile/name to
-   the saved defaults, so choose a fresh Journey ID again afterward.
-9. Click **Save new journey**. Inspect the saved Dart, data, PNG, and metadata files.
-10. Edit the generated journey data independently, then use **Copy Run Command**.
-    Run it in this `example/` directory. Results appear in the terminal.
-
-Profile selection belongs to the testing workflow, not the application UI.
-Use the extension's profile selector / `RECORDER_PROFILE` when rerunning.
-Focused controller activity can also include selection/composition or programmatic
-changes; review input references rather than assuming every notification is typing.
-
-If no authorized DTD project is listed, export is unavailable. Use an IDE-managed
-DevTools session or a Flutter launch with the project root granted by its tooling.
-Do not start an unrestricted daemon. Browser-download fallback is not implemented.
-
-## Run and rerun saved tests
-
-The sample contains two independently generated fixtures:
-
-- [login_test.dart](patrol_test/recorded_journeys/login/login_test.dart):
-  email + note + demo login.
-- [accounts_test.dart](patrol_test/recorded_journeys/accounts/accounts_test.dart):
-  the same independent bootstrap, then account settings.
-
-An additional [browser_verified_test.dart](patrol_test/recorded_journeys/browser_verified/browser_verified_test.dart)
-was captured and exported through real DevTools, with its own data, PNG, and
-metadata. All three passed through the official Patrol runner.
-
-The [automatic_verified_test.dart](patrol_test/recorded_journeys/automatic_verified/automatic_verified_test.dart)
-is a newer real DevTools export made without action hooks, using the test-only
-entrypoint. It uses keys and singleton assertions, with no coordinates.
-
-Each imports its own editable data file. They do not import each other's tests.
-Patrol's configured test directory is `patrol_test`; **there is no suite entrypoint**.
-
-One file:
+## YAML -> Dart
 
 ```sh
-patrol test --target patrol_test/recorded_journeys/login/login_test.dart \
-  --dart-define RECORDER_PROFILE=secondary --device chrome --web-headless
+dart run patrol_recorder_generator:generate --journey my_login
+# Or generate every recorded *.yml:
+dart run patrol_recorder_generator:generate
 ```
 
-One stable case tag:
+The output is:
 
-```sh
-patrol test --target patrol_test/recorded_journeys/login/login_test.dart \
-  --tags recorder_login_sign_in --dart-define RECORDER_PROFILE=demo \
-  --device chrome --web-headless
+```text
+patrol_test/recorded_journeys/my_login/
+  my_login_inputs.g.dart     abstract contract and validation
+  my_login_steps.g.dart      generated Patrol actions
+  my_login_inputs.dart       user implementation, created once
+  my_login_test.dart         user test entrypoint, created once
 ```
 
-Whole suite:
+Implement the abstract getters in the user-owned input file. `loadInputs()` returns
+your implementation; the generated entrypoint passes it to
+`runRecordedJourney($, inputs)`. Initial getters throw until wired intentionally.
+No input values or expressions are evaluated from YAML.
 
-```sh
-patrol test --device chrome --web-headless --dart-define RECORDER_PROFILE=demo
-```
+The real [yaml_login recording](patrol_recorder/yaml_login.yml), its
+[abstract contract](patrol_test/recorded_journeys/yaml_login/yaml_login_inputs.g.dart),
+and [manually connected implementation](patrol_test/recorded_journeys/yaml_login/yaml_login_inputs.dart)
+demonstrate this. The implementation uses fictional
+[Dart fixtures](patrol_test/demo_profiles.dart), not values captured from the app.
+Real secrets must come from your private test provider.
 
-Patrol installs its official local Node/Playwright dependencies on the first web
-run. It builds and launches a separate test app. No recorder Run button or custom
-test executor is involved. If Chromium download is blocked, the current CLI also
-documents `--web-channel msedge` / `--web-executable-path`; check its installation
-behavior rather than assuming those flags skip all downloads.
-
-On this host, Chromium extraction stalled under Node 26.12.0 and succeeded under
-Node 22.23.4. Put Node 22 directly on PATH before invoking Patrol. A nested
-`npx --call` wrapper propagated npm options into Patrol's own `npx` invocation and
-failed; do not use that wrapper to launch Patrol. No runner sources or browser
-installation markers were patched.
-
-## Data and configuration schema (M1)
-
-[recorder_config.yaml](recorder_config.yaml) has schema version `1` and these fields:
-
-| Field | Default / validation |
-| --- | --- |
-| `schema_version` | Required integer `1`; other versions rejected |
-| `output_directory` | `patrol_test/recorded_journeys`; safe relative path, no `..` |
-| `journey_id` | `login`; lowercase identifier, maximum 64 characters |
-| `case_id` | `sign_in`; same identifier rules |
-| `case_name` | Human-readable, printable, 1-120 characters |
-| `profile` | `demo`; must be a declared named profile |
-
-Unknown fields and incorrect YAML types are rejected. M1 data values are strings;
-typed amounts/dates, multiple data sets per case, group management, and reusable
-setup are M2 work. The present model does not limit the project to one file.
-
-Each `<journey>_data.dart` contains:
-
-- A `profiles` map of named, non-secret values.
-- `loadProfile()`, selecting `RECORDER_PROFILE` and rejecting unknown names.
-- Validation for required fields; missing/empty required values fail clearly.
-- A separate secret-reference resolver when secret steps were recorded.
-
-Changes made to the generated data file are authoritative for reruns. The running
-recording entrypoint's public defaults live independently in
-[demo_profiles.dart](patrol_test/demo_profiles.dart), never in application `lib/`.
-No arbitrary Dart is parsed back into the recorder in M1.
-
-### Secrets
-
-A recorded secret input named `password` generates only the reference
-`RECORDER_SECRET_PASSWORD`. Supply its value outside generated files using a
-private JSON file and Patrol's `--dart-define-from-file /private/path/inputs.json`.
-Do not include that file in the project. Missing values raise an error naming the
-reference, never its value. Input actions disable Patrol value logging.
-
-`String.fromEnvironment` values are embedded in the built test app. This mechanism
-avoids source literals; it is not a secure vault. Use short-lived test-only values
-and protect binaries/logs. The package does not inherit desktop environment
-variables automatically inside a device/browser app.
-
-## Tests and scope
+## Run and maintain
 
 ```sh
 flutter analyze
-flutter test
+dart pub global run patrol_cli:main test \
+  --target patrol_test/recorded_journeys/yaml_login/yaml_login_test.dart \
+  --dart-define RECORDER_PROFILE=secondary --device chrome --web-headless
+
+# All independently discoverable tests:
+dart pub global run patrol_cli:main test --device chrome --web-headless
 ```
 
-The example is web-runnable now; mobile platform projects and native screenshot
-providers are intentionally not claimed as implemented. See the
-[current automatic results](../docs/PHASE_1_PLAN.md#automatic-implementation-results)
-and [historical M1 report](../docs/MILESTONE_1_RESULTS.md).
+For another journey, substitute its target and profiles that your implementation
+supports. Patrol installs its official local Playwright dependencies on first run;
+put Node 22 directly on PATH. Do not wrap Patrol in `npx --call`.
+
+To update a flow, reset the app, re-record under the same name, and rerun the
+generator. Only `.g.dart` files are regenerated. Your implementation/assertions
+are preserved; implement any new abstract getters reported by the analyzer.
+No discoverable suite file imports other discoverable tests.
+
+Legacy schema-1 YAML remains readable, but re-recording writes schema 2. Old
+session-named PNG directories are not automatically deleted. Current captures
+reuse `<screenshots_directory>/<journey>/<name>.png`, with an adjacent hidden
+ownership marker to protect unrelated files.
+
+## Complex UI walkthrough
+
+After **Open demo account**, the dashboard offers:
+
+1. **Animation lab**: Animate card, Expand card, Simulate loading, and an expansion
+   tile. Capture `animation_lab` before changes and override the second name to
+   `animation_expanded`. All animations are finite.
+2. **Repeated controls**: choose either Continue button and increment identical
+   icon buttons. The cards, rather than each button, supply stable ancestor keys.
+3. **Forms and overlays**: try Preview profile with an empty name to see validation;
+   enter a fictional name, choose a role, and open the preview bottom sheet.
+   Capture `profile_preview_sheet`. Open the information dialog and capture
+   `information_dialog`.
+4. **Account settings**: toggle notifications/newsletter and confirm/cancel Reset
+   preferences. The confirmation capture is named `reset_preferences_dialog`.
+   Scrolling the long list demonstrates a known review-required gesture.
+
+The real [complex_ui YAML](patrol_recorder/complex_ui.yml) records a 16-action path
+through animations, repeated Continue controls, dialogs and navigation, with four
+named screenshots. Its generated [Patrol test](patrol_test/recorded_journeys/complex_ui/complex_ui_test.dart)
+ran successfully using the inferred normal `main()` entrypoint.
+
+Widget tests additionally exercise form values, dropdown selection, bottom-sheet
+naming, toggles, and the unsupported-drag boundary. This is a representative
+coverage matrix, not a guarantee for every Flutter widget or native platform.
+
+Screenshots cover visible Flutter content, not full-device or stitched whole-page
+views. Unsupported gestures remain explicit review steps. Read the
+[complete workflow, configuration, and limitations](../README.md).

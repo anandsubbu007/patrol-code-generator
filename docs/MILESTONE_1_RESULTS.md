@@ -54,7 +54,7 @@ dependency constraints. No Android device or booted iOS simulator was available.
   observed actions, generated Dart/data preview, profile selection, capture,
   authorized workspace export, configuration loading, and Copy Run Command.
   M1 polls snapshots; the full event/lifecycle editor is deferred.
-- [Generator](../tool/devtools_extension/lib/src/generator.dart): stable case tags,
+- [Generator](../tool/patrol_recorder_generator/lib/generator.dart) (subsequently extracted): stable case tags,
   semantics identifiers before string keys, normal Patrol APIs, separate editable
   data, named profiles, external secret references, and source formatting.
 - [Exporter](../tool/devtools_extension/lib/src/exporter.dart): permission-bound DTD,

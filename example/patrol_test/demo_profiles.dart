@@ -1,4 +1,4 @@
-/// Fictional test defaults, used only by the recording entrypoint and tooling.
+/// Fictional test fixtures. These values are not included in recorded YAML.
 const demoProfiles = <String, Map<String, String>>{
   'demo': {'email': 'demo@example.invalid', 'note': 'Personal demonstration'},
   'secondary': {

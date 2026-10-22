@@ -8,3 +8,5 @@ example/test-results/
 example/playwright-report/
 example/patrol_test/test_bundle.dart
 example/patrol_test/recorded_journeys/*/screenshots/
+example/artifacts/
+example/patrol_recorder/screenshots/

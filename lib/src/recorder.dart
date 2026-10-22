@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:ui' as ui;
@@ -10,6 +11,8 @@ import 'package:flutter/rendering.dart';
 import '../model.dart';
 
 part 'observation.dart';
+part 'scroll_observation.dart';
+part 'text_observation.dart';
 
 class RecorderScreenshot {
   const RecorderScreenshot({
@@ -18,27 +21,41 @@ class RecorderScreenshot {
     required this.height,
     required this.stepId,
     required this.sessionId,
+    required this.captureId,
+    required this.redactedRegions,
+    required this.suggestedName,
+    required this.nameSource,
   });
 
   final Uint8List bytes;
   final int width;
   final int height;
-  final String stepId;
+  final String? stepId;
   final String sessionId;
+  final String captureId;
+  final int redactedRegions;
+  final String suggestedName;
+  final String nameSource;
 
-  Map<String, Object> toJson() => {
+  Map<String, Object?> toJson() => {
     'kind': 'flutterContent',
     'png': base64Encode(bytes),
     'width': width,
     'height': height,
     'stepId': stepId,
     'sessionId': sessionId,
+    'captureId': captureId,
+    'redactedRegions': redactedRegions,
+    'suggestedName': suggestedName,
+    'nameSource': nameSource,
+    'extent': 'visibleViewport',
   };
 }
 
 /// Owns automatic observations. Input values are never buffered or transported.
 class RecorderController extends ChangeNotifier {
-  RecorderController({required this.config, this.maxSteps = 500}) {
+  RecorderController({RecorderAppConfig? config, this.maxSteps = 500})
+    : config = config ?? RecorderAppConfig() {
     if (maxSteps <= 0) throw ArgumentError('maxSteps must be positive.');
   }
 
@@ -49,9 +66,10 @@ class RecorderController extends ChangeNotifier {
   RecordingState _state = RecordingState.ready;
   String? _sessionId;
   String? _error;
-  int _sensitiveRegions = 0;
   bool _capturing = false;
   _RecorderObserver? _observer;
+  int _captures = 0;
+  int _revision = 0;
 
   RecordingState get state => _state;
   List<RecordedStep> get steps => List.unmodifiable(_steps);
@@ -69,8 +87,12 @@ class RecorderController extends ChangeNotifier {
         'Stop the current operation before starting another recording.',
       );
     }
+    if (_state != RecordingState.ready || _sessionId == null) {
+      _sessionId = 'session_${DateTime.now().microsecondsSinceEpoch}';
+      _captures = 0;
+    }
     _steps.clear();
-    _sessionId = 'session_${DateTime.now().microsecondsSinceEpoch}';
+    _revision = 0;
     _error = null;
     _state = RecordingState.recording;
     _observer?.start();
@@ -81,15 +103,19 @@ class RecorderController extends ChangeNotifier {
     if (_state != RecordingState.recording) {
       throw StateError('No recording is active.');
     }
+    _observer?.flushScroll();
     _state = RecordingState.stopped;
     _observer?.stop();
     _changed();
   }
 
   void _problem(String message) {
-    if (_error == message) return;
-    _error = message;
-    _changed();
+    if (_steps.isNotEmpty && _steps.last.target.issue == message) return;
+    _record(
+      RecordedAction.unsupported,
+      RecorderTarget(issue: message),
+      source: ObservationSource.pointerGesture,
+    );
   }
 
   void _record(
@@ -98,6 +124,9 @@ class RecorderController extends ChangeNotifier {
     String? input,
     bool secret = false,
     required ObservationSource source,
+    String? text,
+    RecorderTarget? scrollView,
+    RecordedScrollDirection? scrollDirection,
   }) {
     if (!kDebugMode || _state != RecordingState.recording) return;
     if (input != null) requireIdentifier(input, 'Input reference');
@@ -126,6 +155,9 @@ class RecorderController extends ChangeNotifier {
         input: input,
         secret: secret,
         source: source,
+        text: text,
+        scrollView: scrollView,
+        scrollDirection: scrollDirection,
       ),
     );
     _changed();
@@ -135,58 +167,155 @@ class RecorderController extends ChangeNotifier {
     'protocolVersion': recorderProtocolVersion,
     'state': _state.name,
     'sessionId': _sessionId,
-    'sequence': _steps.length,
+    'sequence': _revision,
     'steps': _steps.map((step) => step.toJson()).toList(),
     'config': config.toJson(),
     'error': _error,
-    'screenshotSupported': kDebugMode && _sensitiveRegions == 0,
+    'screenshotSupported': kDebugMode,
     'capabilities': [
       'automaticTapCandidates',
       'focusedInputReferences',
       'keyFirstScopedSelectors',
       'noCoordinateFallback',
       'flutterContentScreenshot',
+      'inlineTextTap',
+      'targetBasedScroll',
+      'longPressCandidates',
     ],
   };
 
   void _changed() {
+    _revision++;
     notifyListeners();
     if (kDebugMode) developer.postEvent(recorderEventKind, snapshot());
   }
 
-  void _checkCapturePrivacy() {
-    if (_sensitiveRegions > 0) {
-      throw StateError('Capture blocked: a sensitive region is mounted.');
-    }
+  List<ui.Rect> _privateRegions(RenderRepaintBoundary boundary) {
     final root = _boundaryKey.currentContext;
     if (root is! Element) throw StateError('No RecorderScope is attached.');
     final tree = _TargetTree(root);
-    if (!tree.complete ||
-        tree.nodes.any(
+    if (!tree.complete) {
+      throw StateError('Capture privacy scan exceeded its limit.');
+    }
+    final regions = <ui.Rect>[];
+    for (final element in tree.nodes) {
+      final widget = element.widget;
+      if (widget is! RecorderSensitive &&
+          widget is! RecorderIgnore &&
+          !(widget is EditableText && widget.obscureText)) {
+        continue;
+      }
+      var target = element;
+      if (widget is EditableText) {
+        element.visitAncestorElements((ancestor) {
+          if (ancestor.widget is TextField) {
+            target = ancestor;
+            return false;
+          }
+          return ancestor != root;
+        });
+      }
+      final render = target.findRenderObject();
+      if (render is! RenderBox || !render.attached || !render.hasSize) {
+        throw StateError(
+          'Cannot safely locate a private region. Wait for layout and retry.',
+        );
+      }
+      final rect = MatrixUtils.transformRect(
+        render.getTransformTo(boundary),
+        Offset.zero & render.size,
+      ).inflate(2);
+      if (!rect.isFinite) {
+        throw StateError('Cannot safely mask private content.');
+      }
+      final clipped = rect.intersect(Offset.zero & boundary.size);
+      if (!clipped.isEmpty) regions.add(clipped);
+    }
+    return regions;
+  }
+
+  (String, String) _pageName() {
+    final root = _boundaryKey.currentContext;
+    if (root is! Element) return ('screen', 'fallback');
+    final tree = _TargetTree(root);
+    final scopes = tree.nodes
+        .where((e) {
+          final widget = e.widget;
+          if (widget is! Semantics || tree.private(e)) return false;
+          final route = ModalRoute.of(e);
+          return (route == null || route.isCurrent) &&
+              (widget.properties.scopesRoute == true ||
+                  widget.properties.namesRoute == true);
+        })
+        .toList()
+        .reversed;
+    for (final element in scopes) {
+      final id = (element.widget as Semantics).properties.identifier;
+      if (id != null && id.isNotEmpty) {
+        return (screenshotName(id), 'page semantics identifier');
+      }
+    }
+    for (final element in scopes) {
+      final label = (element.widget as Semantics).properties.label;
+      if (label != null && label.isNotEmpty) {
+        return (screenshotName(label), 'page semantics label');
+      }
+    }
+    final pages = tree.nodes
+        .where(
           (e) =>
-              e.widget is RecorderIgnore ||
-              e.widget is EditableText &&
-                  (e.widget as EditableText).obscureText,
-        )) {
-      throw StateError(
-        'Capture blocked: obscured/ignored content or discovery limit.',
+              e.widget is Scaffold ||
+              e.widget is Dialog ||
+              e.widget is AlertDialog ||
+              e.widget is BottomSheet,
+        )
+        .toList()
+        .reversed;
+    for (final element in pages) {
+      final route = ModalRoute.of(element);
+      if (route != null && !route.isCurrent || tree.private(element)) continue;
+      final routeName = route?.settings.name;
+      if (routeName != null &&
+          routeName != '/' &&
+          !routeName.contains('?') &&
+          !routeName.contains('#')) {
+        return (screenshotName(routeName), 'route name');
+      }
+      String? type;
+      element.visitAncestorElements((parent) {
+        if (parent == root || ModalRoute.of(parent) != route) return false;
+        final widget = parent.widget;
+        if ((widget is StatelessWidget || widget is StatefulWidget) &&
+            widget is! Builder &&
+            widget is! Container &&
+            widget is! SafeArea &&
+            !widget.runtimeType.toString().startsWith('_')) {
+          type = widget.runtimeType.toString();
+          return false;
+        }
+        return true;
+      });
+      return (
+        screenshotName(type ?? element.widget.runtimeType.toString()),
+        'page widget type',
       );
     }
+    return ('screen', 'fallback');
   }
 
   Future<RecorderScreenshot> capture() async {
-    if (!kDebugMode || _state != RecordingState.stopped || _steps.isEmpty) {
-      throw StateError('Stop a nonempty debug recording before capturing.');
-    }
-    _checkCapturePrivacy();
+    if (!kDebugMode) throw StateError('Capture requires a debug app.');
     if (_capturing) throw StateError('A screenshot is already in progress.');
+    _sessionId ??= 'session_${DateTime.now().microsecondsSinceEpoch}';
+    final sessionId = _sessionId!;
+    final stepId = _steps.isEmpty ? null : _steps.last.id;
+    final captureId = 'capture_${(++_captures).toString().padLeft(4, '0')}';
     _capturing = true;
     try {
       WidgetsBinding.instance.scheduleFrame();
       await WidgetsBinding.instance.endOfFrame.timeout(
         const Duration(seconds: 5),
       );
-      _checkCapturePrivacy();
       final renderObject = _boundaryKey.currentContext?.findRenderObject();
       if (renderObject is! RenderRepaintBoundary ||
           renderObject.debugNeedsPaint) {
@@ -197,15 +326,31 @@ class RecorderController extends ChangeNotifier {
           'Flutter content exceeds the 8-megapixel capture limit.',
         );
       }
+      final regions = _privateRegions(renderObject);
+      final (suggestedName, nameSource) = _pageName();
       final image = await renderObject.toImage(pixelRatio: 1);
       try {
-        final data = await image.toByteData(format: ui.ImageByteFormat.png);
+        regions.addAll(_privateRegions(renderObject));
+        final pictureRecorder = ui.PictureRecorder();
+        final canvas = ui.Canvas(pictureRecorder);
+        canvas.drawImage(image, Offset.zero, ui.Paint());
+        for (final rect in regions) {
+          canvas.drawRect(rect, ui.Paint()..color = const Color(0xFF202020));
+        }
+        final picture = pictureRecorder.endRecording();
+        final masked = await picture.toImage(image.width, image.height);
+        picture.dispose();
+        final ByteData? data;
+        try {
+          data = await masked.toByteData(format: ui.ImageByteFormat.png);
+        } finally {
+          masked.dispose();
+        }
         if (data == null || data.lengthInBytes > 4 * 1024 * 1024) {
           throw StateError(
             'PNG capture failed or exceeded the 4 MiB transfer limit.',
           );
         }
-        _checkCapturePrivacy();
         return RecorderScreenshot(
           bytes: data.buffer.asUint8List(
             data.offsetInBytes,
@@ -213,8 +358,12 @@ class RecorderController extends ChangeNotifier {
           ),
           width: image.width,
           height: image.height,
-          stepId: _steps.last.id,
-          sessionId: _sessionId!,
+          stepId: stepId,
+          sessionId: sessionId,
+          captureId: captureId,
+          redactedRegions: regions.toSet().length,
+          suggestedName: suggestedName,
+          nameSource: nameSource,
         );
       } finally {
         image.dispose();
@@ -328,7 +477,13 @@ class _RecorderScopeState extends State<RecorderScope> {
       controller: widget.controller,
       child: RepaintBoundary(
         key: widget.controller._boundaryKey,
-        child: widget.child,
+        child: NotificationListener<ScrollNotification>(
+          onNotification: (notification) {
+            widget.controller._observer?.observeScroll(notification);
+            return false;
+          },
+          child: widget.child,
+        ),
       ),
     );
   }
@@ -342,37 +497,15 @@ class _RecorderInherited extends InheritedWidget {
       controller != oldWidget.controller;
 }
 
-/// Conservatively blocks screenshots while this subtree is mounted.
-class RecorderSensitive extends StatefulWidget {
+/// Treats descendant input as secret and masks this region in screenshots.
+class RecorderSensitive extends StatelessWidget {
   const RecorderSensitive({super.key, required this.child});
   final Widget child;
   @override
-  State<RecorderSensitive> createState() => _RecorderSensitiveState();
+  Widget build(BuildContext context) => child;
 }
 
-class _RecorderSensitiveState extends State<RecorderSensitive> {
-  RecorderController? _controller;
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final next = RecorderScope.maybeOf(context);
-    if (identical(next, _controller)) return;
-    _controller?._sensitiveRegions--;
-    _controller = next;
-    _controller?._sensitiveRegions++;
-  }
-
-  @override
-  void dispose() {
-    _controller?._sensitiveRegions--;
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => widget.child;
-}
-
-/// Excludes subtree interactions and conservatively blocks screenshots.
+/// Excludes subtree interactions and masks the region in screenshots.
 class RecorderIgnore extends StatelessWidget {
   const RecorderIgnore({super.key, required this.child});
   final Widget child;

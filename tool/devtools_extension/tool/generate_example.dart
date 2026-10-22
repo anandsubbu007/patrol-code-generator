@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:patrol_recorder/model.dart';
-import 'package:patrol_recorder_devtools/src/generator.dart';
+import 'package:patrol_recorder_generator/generator.dart';
 
 import '../../../example/patrol_test/demo_profiles.dart';
 
@@ -53,7 +53,6 @@ Future<void> main() async {
       config: config,
     );
     for (final entry in output.files().entries) {
-      if (entry.key == 'recorder_config.yaml') continue;
       final file = File.fromUri(root.absolute.uri.resolve(entry.key));
       if (await file.exists()) {
         throw StateError('Refusing to overwrite ${entry.key}.');

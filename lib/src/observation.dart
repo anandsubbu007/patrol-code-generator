@@ -10,7 +10,20 @@ const _widgetTypes = <String, Type>{
   'InkWell': InkWell,
   'GestureDetector': GestureDetector,
   'TextField': TextField,
+  'TextFormField': TextFormField,
   'EditableText': EditableText,
+  'Switch': Switch,
+  'Checkbox': Checkbox,
+  'ListTile': ListTile,
+  'SwitchListTile': SwitchListTile,
+  'CheckboxListTile': CheckboxListTile,
+  'InkResponse': InkResponse,
+  'RichText': RichText,
+  'Scrollable': Scrollable,
+  'ListView': ListView,
+  'GridView': GridView,
+  'CustomScrollView': CustomScrollView,
+  'SingleChildScrollView': SingleChildScrollView,
 };
 
 bool _within(Element element, Element ancestor) {
@@ -90,8 +103,14 @@ class _TargetTree {
           element.widget is TextField &&
           (element.widget as TextField).decoration?.labelText == selector.value,
     SelectorKind.text => !private(element) && _text(element) == selector.value,
+    SelectorKind.richText =>
+      !private(element) &&
+          element.widget is RichText &&
+          (element.widget as RichText).text.toPlainText() == selector.value,
     SelectorKind.widgetType =>
-      element.widget.runtimeType == _widgetTypes[selector.value],
+      element.widget.runtimeType == _widgetTypes[selector.value] &&
+          (selector.value != 'Scrollable' ||
+              ModalRoute.of(element)?.isCurrent != false),
   };
 
   Iterable<RecorderSelector> candidates(
@@ -116,6 +135,16 @@ class _TargetTree {
         yield RecorderSelector(SelectorKind.text, text);
       }
       final widget = element.widget;
+      if (widget is RichText && !_marked<Icon>(element)) {
+        final richText = widget.text.toPlainText();
+        if (richText.isNotEmpty &&
+            richText.length <= 256 &&
+            !richText.runes.any(
+              (r) => r == 0xFFFC || r >= 0xE000 && r <= 0xF8FF,
+            )) {
+          yield RecorderSelector(SelectorKind.richText, richText);
+        }
+      }
       if (widget is TextField) {
         final label = widget.decoration?.labelText;
         if (label != null && label.isNotEmpty && label.length <= 256) {
@@ -130,14 +159,21 @@ class _TargetTree {
     }
   }
 
-  RecorderTarget resolve(Element control, {bool secret = false}) {
+  RecorderTarget resolve(
+    Element control, {
+    bool secret = false,
+    bool rootOnly = false,
+  }) {
     if (!complete) {
       return RecorderTarget(issue: 'Target discovery exceeded 10000 elements.');
     }
-    final local = nodes.where((e) => _within(e, control)).toList();
-    // Include immediately surrounding semantics, never a page-wide keyed ancestor.
+    final local = rootOnly
+        ? <Element>[control]
+        : nodes.where((e) => _within(e, control)).toList();
+    // Transparent keyed wrappers identify the same render target, not a whole page.
     control.visitAncestorElements((e) {
-      if (e.widget is Semantics) {
+      if (e.widget is Semantics ||
+          identical(e.findRenderObject(), control.findRenderObject())) {
         local.add(e);
         return true;
       }
@@ -148,10 +184,12 @@ class _TargetTree {
           for (final e in local)
             for (final s in candidates(e, secret: secret))
               if (control.widget is! TextField &&
+                      control.widget is! TextFormField &&
                       control.widget is! EditableText ||
                   // Text entry must locate an ancestor of EditableText, not its label/render leaf.
                   _within(control, e) ||
-                  e == control)
+                  e == control ||
+                  control.widget is TextFormField && e.widget is TextField)
                 (e, s),
         ]..sort((a, b) {
           final order = a.$2.kind.index.compareTo(b.$2.kind.index);
@@ -161,18 +199,7 @@ class _TargetTree {
         });
     for (final (element, selector) in choices) {
       final matchesAll = nodes.where((e) => matches(e, selector)).toList();
-      final contentSelector =
-          selector.kind == SelectorKind.text ||
-          selector.kind == SelectorKind.semanticsLabel ||
-          selector.kind == SelectorKind.fieldLabel;
-      bool privacySafe(Iterable<Element> region) =>
-          !contentSelector ||
-          !region.any(
-            (e) => e.widget is RecorderSensitive || e.widget is RecorderIgnore,
-          );
-      if (matchesAll.length == 1 &&
-          matchesAll.single == element &&
-          privacySafe(nodes)) {
+      if (matchesAll.length == 1 && matchesAll.single == element) {
         return RecorderTarget(selector: selector);
       }
       RecorderTarget? scoped;
@@ -184,15 +211,10 @@ class _TargetTree {
               s.kind == SelectorKind.semanticsIdentifier,
         )) {
           if (nodes.where((e) => matches(e, scope)).length != 1) continue;
-          final region = nodes.where(
-            (e) => e != ancestor && _within(e, ancestor),
-          );
           final selected = matchesAll.where(
             (e) => e != ancestor && _within(e, ancestor),
           );
-          if (selected.length == 1 &&
-              selected.single == element &&
-              privacySafe(region)) {
+          if (selected.length == 1 && selected.single == element) {
             scoped = RecorderTarget(selector: selector, scope: scope);
             return false;
           }
@@ -202,16 +224,38 @@ class _TargetTree {
       if (scoped != null) return scoped!;
     }
     return RecorderTarget(
-      issue: 'No unique selector. Add a stable key/identifier or uniquely keyed parent and re-record. Coordinates and indexes are disabled.',
+      issue:
+          'No unique selector for ${control.widget.runtimeType}. Add key: const ValueKey<String>("unique_action_id") '
+          'to the widget, or give its parent a unique key for scoping, then re-record. Use a different stable name for each control. '
+          'Coordinates and indexes are disabled.',
     );
   }
 }
 
 class _PendingPointer {
-  _PendingPointer(this.event, this.target);
+  _PendingPointer(
+    this.event,
+    this.target, {
+    this.element,
+    this.text,
+    this.longPress = false,
+    this.ignoreDrag = false,
+    this.scrollStarts = const {},
+  }) {
+    _holdTimer = Timer(kLongPressTimeout, () => held = true);
+  }
   final PointerDownEvent event;
   final RecorderTarget? target;
   bool moved = false;
+  bool scrollHandled = false;
+  bool held = false;
+  late final Timer _holdTimer;
+  void dispose() => _holdTimer.cancel();
+  final Element? element;
+  final String? text;
+  final bool longPress;
+  final bool ignoreDrag;
+  final Map<ScrollableState, double> scrollStarts;
 }
 
 class _RecorderObserver {
@@ -227,6 +271,9 @@ class _RecorderObserver {
   bool _secret = false;
   bool _active = false;
   int _epoch = 0;
+  final _scrolls = <ScrollableState, _ScrollTrace>{};
+  Element? _lastScrollElement;
+  bool _flushingScroll = false;
 
   Element? get root {
     final context = recorder._boundaryKey.currentContext;
@@ -254,7 +301,13 @@ class _RecorderObserver {
       FocusManager.instance.removeListener(_focus);
     }
     _active = false;
+    for (final pointer in _pointers.values) {
+      pointer.dispose();
+    }
     _pointers.clear();
+    for (final trace in _scrolls.values) { trace.dispose(); }
+    _scrolls.clear();
+    _lastScrollElement = null;
     _detachEditor();
     _semantics?.dispose();
     _semantics = null;
@@ -266,51 +319,109 @@ class _RecorderObserver {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_active || epoch != _epoch) return;
       _focus();
+      for (final trace in _scrolls.values.toList()) {
+        if (!trace.state.mounted || !identical(trace.state.position, trace.position)) {
+          _finishScroll(trace.state);
+        }
+      }
       _watchFrames(epoch);
     });
   }
 
   Element? _control(Element leaf) {
     Element? fallback;
-    Element? result;
-    void inspect(Element element) {
+    final chain = <Element>[leaf];
+    leaf.visitAncestorElements((e) {
+      chain.add(e);
+      return e != root;
+    });
+    for (final element in chain) {
       final widget = element.widget;
       if (widget is TextField ||
           widget is ButtonStyleButton &&
               _widgetTypes.containsValue(widget.runtimeType) ||
           widget is IconButton ||
-          widget is FloatingActionButton) {
-        result ??= element;
-      } else if (widget is EditableText ||
-          widget is InkWell ||
-          widget is GestureDetector && widget.onTap != null) {
+          widget is FloatingActionButton ||
+          widget is Switch ||
+          widget is Checkbox ||
+          widget is ListTile ||
+          widget is SwitchListTile ||
+          widget is CheckboxListTile ||
+          widget is DropdownButton ||
+          widget is PopupMenuButton) {
+        return element;
+      }
+      if (widget is GestureDetector &&
+          (widget.onTap != null ||
+              widget.onTapUp != null ||
+              widget.onTapDown != null ||
+              widget.onLongPress != null)) {
+        // The innermost independent detector owns this hit; do not select its parent.
+        if (fallback != null) return fallback;
+        fallback = element;
+      } else if (widget is InkResponse) {
+        if (fallback?.widget is InkResponse) return fallback;
+        fallback = element;
+      } else if (widget is EditableText) {
         fallback ??= element;
       }
     }
-
-    inspect(leaf);
-    leaf.visitAncestorElements((e) {
-      inspect(e);
-      return result == null && e != root;
-    });
-    return result ?? fallback;
+    return fallback;
   }
 
   bool _enabled(Element element) => switch (element.widget) {
-    ButtonStyleButton w => w.onPressed != null,
+    ButtonStyleButton w => w.onPressed != null || w.onLongPress != null,
     IconButton w => w.onPressed != null,
     FloatingActionButton w => w.onPressed != null,
-    InkWell w => w.onTap != null,
-    GestureDetector w => w.onTap != null,
+    Switch w => w.onChanged != null,
+    Checkbox w => w.onChanged != null,
+    ListTile w => w.enabled && w.onTap != null,
+    SwitchListTile w => w.onChanged != null,
+    CheckboxListTile w => w.onChanged != null,
+    DropdownButton() =>
+      element.findRenderObject()?.debugSemantics?.getSemanticsData().hasAction(
+            ui.SemanticsAction.tap,
+          ) ==
+          true,
+    PopupMenuButton w => w.enabled,
+    InkResponse w => w.onTap != null || w.onLongPress != null,
+    GestureDetector w =>
+      w.onTap != null ||
+          w.onTapUp != null ||
+          w.onTapDown != null ||
+          w.onLongPress != null,
     TextField w => w.enabled != false && !w.readOnly,
     EditableText w => !w.readOnly,
     _ => false,
   };
 
+  bool _canLongPress(Element element) => switch (element.widget) {
+    ButtonStyleButton w => w.onLongPress != null,
+    InkResponse w => w.onLongPress != null,
+    GestureDetector w => w.onLongPress != null,
+    _ => false,
+  };
+
+  void _action(
+    RecordedAction action,
+    RecorderTarget target,
+    Element? element, {
+    String? text,
+    required ObservationSource source,
+  }) {
+    flushScroll();
+    anchorRecentScroll(target, element);
+    recorder._record(action, target, source: source, text: text);
+  }
+
   void _pointer(PointerEvent event) {
     if (!_active || root == null) return;
     if (event is PointerDownEvent) {
+      flushScroll();
       if (event.buttons != kPrimaryButton || _pointers.isNotEmpty) {
+        for (final pointer in _pointers.values) {
+          pointer.dispose();
+        }
         _pointers.clear();
         recorder._problem(
           'Multi-pointer/non-primary gestures are unsupported. Re-record without them.',
@@ -331,81 +442,122 @@ class _RecorderObserver {
         }
       }
       if (leaf == null || _marked<RecorderIgnore>(leaf)) return;
+      final scrollStarts = scrollAncestors(leaf);
+      final link = linkAt(leaf, event.position);
+      if (link != null) {
+        _pointers[event.pointer] = _PendingPointer(
+          event,
+          link.target,
+          element: leaf,
+          text: link.text,
+          scrollStarts: scrollStarts,
+        );
+        return;
+      }
       final control = _control(leaf);
       if (control != null &&
           (!_enabled(control) ||
               control.widget is TextField ||
               control.widget is EditableText)) {
-        _pointers[event.pointer] = _PendingPointer(event, null);
+        _pointers[event.pointer] = _PendingPointer(
+          event,
+          null,
+          ignoreDrag: true,
+          scrollStarts: scrollStarts,
+        );
         return;
       }
-      var tapHandlers = 0;
-      leaf.visitAncestorElements((e) {
-        if (e == control) return false;
-        if (e.widget is GestureDetector &&
-            (e.widget as GestureDetector).onTap != null) {
-          tapHandlers++;
-        }
-        return true;
-      });
-      final target = tapHandlers > 1
-          ? RecorderTarget(
-              issue: 'Nested tap handlers require a stable independently identifiable control. Re-record after resolving the nesting.',
-            )
-          : control == null
-          ? RecorderTarget(
-              issue: 'Unsupported tap target. Add an accessible standard control or ignore this subtree.',
-            )
+      // Background/focus-dismissal taps are not application actions.
+      final target = control == null
+          ? null
           : _TargetTree(root!)
                 .resolve(control, secret: _marked<RecorderSensitive>(control));
-      _pointers[event.pointer] = _PendingPointer(event, target);
+      _pointers[event.pointer] = _PendingPointer(
+        event,
+        target,
+        element: control,
+        longPress: control != null && _canLongPress(control),
+        scrollStarts: scrollStarts,
+      );
     } else if (event is PointerMoveEvent) {
       final pending = _pointers[event.pointer];
       if (pending != null &&
           (event.position - pending.event.position).distance > kTouchSlop) {
         pending.moved = true;
+        observeDragScroll(pending);
       }
+    } else if (event is PointerScrollEvent || event is PointerPanZoomUpdateEvent) {
+      observePointerScroll(event.position, event.viewId);
     } else if (event is PointerCancelEvent) {
-      _pointers.remove(event.pointer);
+      _pointers.remove(event.pointer)?.dispose();
     } else if (event is PointerUpEvent) {
       final pending = _pointers.remove(event.pointer);
       if (pending == null) return;
-      if (pending.moved ||
-          event.timeStamp - pending.event.timeStamp >= kLongPressTimeout) {
+      pending.dispose();
+      if (pending.moved) {
+        if (pending.scrollHandled || pending.ignoreDrag) return;
         recorder._problem(
-          'Drag/long press recording is not supported yet. Re-record without this gesture.',
+          'Drag needs review: no observable Flutter scroll was identified. Give the ScrollView a unique ValueKey and '
+          'do not consume its ScrollNotifications. Custom canvas/slider drags need a specific adapter; no coordinate tap was generated.',
         );
         return;
       }
       if (pending.target == null) return;
-      recorder._record(
-        RecordedAction.tap,
+      if (pending.held ||
+          event.timeStamp - pending.event.timeStamp >= kLongPressTimeout) {
+        if (pending.longPress) {
+          _action(
+            RecordedAction.longPress,
+            pending.target!,
+            pending.element,
+            source: ObservationSource.pointerGesture,
+          );
+        } else {
+          recorder._problem(
+            'Long press could not be identified. Add a key to a widget with a public onLongPress action and re-record.',
+          );
+        }
+        return;
+      }
+      _action(
+        pending.text == null ? RecordedAction.tap : RecordedAction.tapText,
         pending.target!,
+        pending.element,
+        text: pending.text,
         source: ObservationSource.pointerGesture,
-      );
-    } else if (event is PointerScrollEvent ||
-        event is PointerPanZoomStartEvent) {
-      recorder._problem(
-        'Scroll/pan recording is not supported yet. Re-record without this gesture.',
       );
     }
   }
 
   void _semanticsAction(ui.SemanticsActionEvent event) {
     if (!_active || root == null) return;
-    if (event.type != ui.SemanticsAction.tap) {
-      if (event.type == ui.SemanticsAction.longPress ||
-          event.type == ui.SemanticsAction.scrollUp ||
+    if (event.type != ui.SemanticsAction.tap &&
+        event.type != ui.SemanticsAction.longPress) {
+      if (event.type == ui.SemanticsAction.scrollUp ||
           event.type == ui.SemanticsAction.scrollDown ||
           event.type == ui.SemanticsAction.scrollLeft ||
-          event.type == ui.SemanticsAction.scrollRight) {
-        recorder._problem(
-          'This accessibility gesture is not supported. Re-record without it.',
-        );
+          event.type == ui.SemanticsAction.scrollRight ||
+          event.type == ui.SemanticsAction.scrollToOffset) {
+        beginSemanticsScroll(event);
       }
       return;
     }
     final tree = _TargetTree(root!);
+    if (event.type == ui.SemanticsAction.tap) {
+      final link = linkForSemantics(event, tree);
+      if (link != null) {
+        _action(
+          link.text == null
+              ? RecordedAction.unsupported
+              : RecordedAction.tapText,
+          link.target,
+          link.element,
+          text: link.text,
+          source: ObservationSource.semanticsAction,
+        );
+        return;
+      }
+    }
     final elements = tree.nodes.whereType<RenderObjectElement>().where(
       (e) =>
           View.of(e).viewId == event.viewId &&
@@ -421,13 +573,24 @@ class _RecorderObserver {
     if (_marked<RecorderIgnore>(element)) return;
     final control = _control(element);
     if (control == null) {
-      recorder._problem('Unsupported accessibility control.');
+      final node = element.renderObject.debugSemantics;
+      if (node?.getSemanticsData().hasAction(ui.SemanticsAction.tap) == true) {
+        _action(
+          RecordedAction.tap,
+          tree.resolve(element, secret: _marked<RecorderSensitive>(element)),
+          element,
+          source: ObservationSource.semanticsAction,
+        );
+      }
     } else if (_enabled(control) &&
         control.widget is! TextField &&
         control.widget is! EditableText) {
-      recorder._record(
-        RecordedAction.tap,
+      _action(
+        event.type == ui.SemanticsAction.longPress
+            ? RecordedAction.longPress
+            : RecordedAction.tap,
         tree.resolve(control, secret: _marked<RecorderSensitive>(control)),
+        control,
         source: ObservationSource.semanticsAction,
       );
     }
@@ -471,8 +634,16 @@ class _RecorderObserver {
     _editorElement = editor;
     _controller = widget.controller;
     _secret = secret;
+    Element? formField;
+    editor!.visitAncestorElements((element) {
+      if (element.widget is TextFormField) {
+        formField = element;
+        return false;
+      }
+      return element != root;
+    });
     _inputTarget = _TargetTree(root!)
-        .resolve(_control(editor!) ?? editor!, secret: _secret);
+        .resolve(formField ?? _control(editor!) ?? editor!, secret: _secret);
     _controller!.addListener(_edit);
   }
 
@@ -491,6 +662,8 @@ class _RecorderObserver {
     }
     // Notifications include selection/programmatic changes. Never read or retain text.
     final target = _inputTarget!;
+    flushScroll();
+    anchorRecentScroll(target, element);
     final name = _inputs.putIfAbsent(target.identity, () {
       var proposed = target.key;
       if (proposed == null ||

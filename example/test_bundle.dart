@@ -13,10 +13,7 @@ import 'package:patrol/src/platform/mobile/patrol_runtime_ports.dart';
 import 'package:test_api/src/backend/invoker.dart';
 
 // START: GENERATED TEST IMPORTS
-import 'patrol_test/recorded_journeys/accounts/accounts_test.dart' as recorded_journeys__accounts__accounts_test;
-import 'patrol_test/recorded_journeys/automatic_verified/automatic_verified_test.dart' as recorded_journeys__automatic_verified__automatic_verified_test;
-import 'patrol_test/recorded_journeys/browser_verified/browser_verified_test.dart' as recorded_journeys__browser_verified__browser_verified_test;
-import 'patrol_test/recorded_journeys/login/login_test.dart' as recorded_journeys__login__login_test;
+import 'patrol_test/recorded_journeys/async_flow/async_flow_test.dart' as recorded_journeys__async_flow__async_flow_test;
 // END: GENERATED TEST IMPORTS
 
 Future<void> main() async {
@@ -108,10 +105,7 @@ Future<void> main() async {
   });
 
 // START: GENERATED TEST GROUPS
-  group('recorded_journeys.accounts.accounts_test', recorded_journeys__accounts__accounts_test.main);
-  group('recorded_journeys.automatic_verified.automatic_verified_test', recorded_journeys__automatic_verified__automatic_verified_test.main);
-  group('recorded_journeys.browser_verified.browser_verified_test', recorded_journeys__browser_verified__browser_verified_test.main);
-  group('recorded_journeys.login.login_test', recorded_journeys__login__login_test.main);
+  group('recorded_journeys.async_flow.async_flow_test', recorded_journeys__async_flow__async_flow_test.main);
 // END: GENERATED TEST GROUPS
 
   if (constants.testDiscoveryEnabled) {

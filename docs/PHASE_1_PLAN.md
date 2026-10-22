@@ -5,6 +5,22 @@
 **Research date:** 22 October 2026.  
 **Working name:** `patrol_recorder` (name availability and naming permission not yet checked).
 
+**Current workflow revision:** Named recording now writes
+`patrol_recorder/<journey>.yml` immediately and autosaves it. A separate development
+CLI generates Patrol Dart and abstract inputs from stopped YAML journeys.
+Re-recording the same name replaces the YAML, never the user's Dart provider.
+Dynamic inputs use `{{name}}`; screenshot/YAML/output paths have optional pubspec
+defaults. This supersedes the prior direct-generation dialog described historically
+below. See [YAML source and generation workflow](#yaml-source-and-generation-workflow)
+and the [current user guide](../README.md).
+
+**Stable-capture/bootstrap follow-up:** New schema-2 YAML omits both session IDs
+and the app import/builder block. Screenshots use semantic page/state names under
+`<screenshots_directory>/<journey>/<name>.png`, with user overrides and safe
+replacement. The generator infers normal `lib/main.dart -> main()` and allows a
+one-time pubspec override for custom test initialization. The example now includes
+an animated/multi-screen UI laboratory. See [stable captures and complex UI](#stable-captures-and-complex-ui).
+
 ## 1. Recommendation and scope
 
 Build a small, opt-in **in-app Flutter recorder**, a **Flutter web DevTools extension**, and a **deterministic Patrol Dart generator**. Use the existing Dart Tooling Daemon (DTD) for permitted workspace export. Add a narrowly scoped, optional host-side screenshot adapter only for device captures that Flutter cannot provide.
@@ -844,7 +860,7 @@ its ordinary `obscureText` password field is detected automatically.
 - [Model](../lib/model.dart): protocol 2, typed key/semantics/field-label/text/type
   selectors, one unique ancestor scope, unresolved reasons, and observation
   provenance. Old protocol-1 session reopening is not supported.
-- [Generator](../tool/devtools_extension/lib/src/generator.dart): no coordinate
+- [Generator](../tool/patrol_recorder_generator/lib/generator.dart) (subsequently extracted): no coordinate
   or index representation; every generated action waits for existence and
   asserts `findsOneWidget` before acting. Unresolved steps refuse generation.
 - Keyless duplicate buttons can resolve by text or type inside a stable ancestor;
@@ -921,6 +937,268 @@ proof. Reference-only field activity intentionally does not differentiate all IM
 selection, autofill, or programmatic causes. Mobile, multi-view, complete overlay/
 gesture combinations and device performance budgets need further validation.
 
+### Guided workflow repair
+
+The user's reported problems were reproduced and fixed in the existing recorder
+workflow, without adding a custom runner, coordinate selectors, or a cloud service.
+
+| Reported issue | Implemented behavior |
+| --- | --- |
+| Capture disabled while recording | Visible Flutter viewport capture works before actions, during recording, and after stopping; captures carry unique IDs and optional step associations |
+| Cannot capture login/sensitive pages | The app masks obscured text fields and explicitly sensitive/ignored rectangles before PNG encoding/transport; missing privacy geometry fails explicitly |
+| Frequent unsupported actions | Background taps are ignored; common toggles, list tiles, dropdown/menu taps and nested targets are recognized; unrelated private regions no longer invalidate public labels |
+| Genuine unsupported actions block everything | They are explicit review-required steps. The user can uncheck unnecessary actions; only included unresolved steps block code generation. Excluded actions are not replayed |
+| Separate recorder configuration | Deleted the example config file. Optional defaults now come from `pubspec.yaml > recorder_config`; all settings can be entered in DevTools |
+| No clear completion action | Generate code opens the guided form, stops recording if needed, validates required input choices, and Generate and save files performs actual DTD writes |
+| Input customization lost during regeneration | Generated `*_inputs.g.dart` declares an abstract contract; user-owned `*_inputs.dart` implements it. It and `*_test.dart` are preserved. Only recognized `.g.dart` files can be replaced, with explicit consent |
+| No visible generated files/next step | A result card lists every saved/preserved absolute path, which provider to connect, analyzer instructions and the terminal run command |
+
+Capture is limited to the visible viewport, not stitched whole-page capture or
+system UI. A draft retains at most 10 captures/20 MiB; each is limited to 8
+megapixels/4 MiB. Screen capture is optional for generating code. Screenshot-only
+drafts can save their images without generating an empty success-shaped test.
+Screenshots remain in DevTools memory until exported; refresh/restart is not a
+saved-session reopen operation.
+
+Required non-secret input fields can be supplied in the dialog or explicitly
+deferred to the user-owned Dart provider. Secret values are never requested in
+the UI; generated getters initially use named compile-time defines and can be
+connected to a private provider in `loadInputs()`. No JSON input file is required
+or generated. Optional session JSON is metadata only, with excluded step IDs and
+capture associations. Deferred/missing runtime inputs throw clear errors.
+
+The new output layout is:
+
+```text
+<journey>_test.dart          user-owned test entrypoint and custom assertions
+<journey>_inputs.dart        user-owned implementation/provider
+<journey>_inputs.g.dart      generated abstract interface and input validation
+<journey>_steps.g.dart       generated normal Patrol actions
+screenshots/*.png           optional masked visible-view captures
+sessions/<session>.json     optional recording metadata, never input values
+```
+
+Existing old-layout tests are not silently migrated. Generate a fresh journey
+when adopting the new layout. Updates preserve old user-owned filenames exactly;
+new interface getters must be implemented explicitly. Preserved test wrappers
+retain their existing names/tags, so the completion screen offers a file-level
+command rather than assuming a newly entered tag replaced them.
+
+Verification includes runtime tests of capture before/during/after recording,
+PNG pixel masking, callbacks, nested selectors, dropdowns, toggles, privacy and
+cleanup; generator tests of abstract contracts, deferred/secret inputs and
+preserved files; widget tests of the actual form, validation, screenshots,
+explicit exclusions and final file paths. The extension UI is tested against an
+injected backend, with web-only DevTools communication isolated in its adapter.
+
+The actual DevTools proof saved
+[guided_login](../example/patrol_test/recorded_journeys/guided_login/): four Dart
+files and two PNGs captured during recording, including a masked login screen
+before the first action. The exported test analyzed cleanly and passed official
+Patrol web execution with the `secondary` profile. Real DevTools regeneration
+preserved the user input file byte-for-byte and displayed saved/preserved paths
+and run instructions. Missing-input validation was also visible in the real UI.
+
+Final checks passed: **27 runtime/API tests, 14 generator/UI/export tests, and 6
+example tests (47 total)**; clean analysis of all three packages; extension build
+and official validation; and **5/5** independently discovered Patrol tests using
+the demo profile. The new guided test also passed individually with secondary
+data. The saved login PNG is 2392 x 1669, 37502 bytes, with SHA-256
+`49e3402a6f3c5982552166b4e30d694c99ff151964ac4c3801651b9be6eee718`.
+Its obscured-field rectangle was visually masked; widget tests independently
+assert the masked pixel color, and both saved PNGs passed CRC/decompression checks.
+
+A real-host edge case exposed duplicate DTD roots (the same example directory
+listed via workspace and project discovery). The generation dialog now deduplicates
+roots before selecting a matching app, with regression coverage. Flutter's
+accessibility tree can merge result text into a group; visual inspection and
+actual file checks were used in addition to locator-based checks.
+
+DTD still lacks atomic exclusive-create/multi-file transactions. Text is read
+back exactly; PNG write/existence is acknowledged and the saved image is verified
+independently in the proof. Concurrent editing can race export checks; user-owned
+files are never replaced, and generated-only replacement checks ownership and
+pre-write content. An interrupted export can leave partial output with an error.
+
+No claim is made of complete native/scroll/long-press recording. Unsupported
+gestures are surfaced for review, not synthesized as coordinate actions. Input
+activity remains reference-only and may include programmatic or selection changes.
+
+### YAML source and generation workflow
+
+The user requested a Maestro-like declarative source layer, not Maestro
+integration. Public [Maestro Flow documentation](https://docs.maestro.dev/maestro-flows/readme) confirms the architecture
+of ordered YAML commands plus app/flow metadata, external parameters, and
+contextual selectors. This package uses those design principles but retains
+Patrol execution and the user's `{{input_name}}` syntax. The schemas are not
+interchangeable; Maestro uses `${VARIABLE}`. No Maestro source, JavaScript
+evaluator, native driver, cloud service, or execution engine was added.
+
+**Implemented ownership and lifecycle**
+
+1. **Record** asks for the app project/name and paths, then writes an initial
+   recorder-owned `.yml` immediately with `state: recording`.
+2. Runtime snapshots are polled about once per second and serialized to the same
+   file; screenshot/stop/review changes flush explicitly. Writes are serialized
+   with UI commands, verified by text readback, and failures are visible/retryable.
+3. Input steps contain only references, for example `input: "{{user_name}}"`.
+   Secret classification and stable/scoped selectors are metadata, not values.
+   App-authored safe defaults are deliberately omitted from YAML.
+4. **Stop** saves `state: stopped`. Incomplete or unresolved included actions
+   prevent generation. Explicit exclusions remain documented in the source.
+5. `dart run patrol_recorder_generator:generate [--journey name]` validates all
+   selected sources, then generates ordinary Patrol Dart. It does not run tests.
+6. The generated abstract `JourneyInputs` contract is separate from the one-time,
+   user-owned provider scaffold. Users implement the getters and return/pass an
+   instance to `runRecordedJourney($, inputs)`.
+7. Re-record the same name to replace its owned YAML. The CLI then updates only
+   recognized generated files. Providers and test wrappers/custom assertions
+   remain byte-for-byte unchanged. New getters cause explicit analyzer errors
+   until implemented.
+
+The source schema is independently versioned as 1; the runtime transport remains
+version 3. It uses declarative `target: {key: ...}` / `text` / `semantics_id` /
+`semantics_label` / `field_label` / `widget_type` plus optional `within`. No
+coordinates/index selector or arbitrary expression can be deserialized.
+
+Optional `pubspec.yaml > recorder_config` adds:
+
+```yaml
+recordings_directory: patrol_recorder
+screenshots_directory: patrol_recorder/screenshots
+output_directory: patrol_test/recorded_journeys
+```
+
+The Record dialog can override recording/screenshot paths. The copied generator
+command includes the selected YAML directory. Screenshots save immediately to
+`<screenshots_directory>/<journey>/<session>/<capture>_flutter.png`, with paths in
+the YAML. Re-recording does not delete archived PNGs. The CLI checks referenced
+screenshots exist rather than silently ignoring broken artifacts.
+
+**Package decision:** the shared schema/generator and executable live in the
+unpublished [patrol_recorder_generator](../tool/patrol_recorder_generator/)
+development package. The extension and example both depend on it, avoiding two
+generators or an app-runtime dependency on formatter/analyzer/YAML tooling.
+The CLI itself uses only Dart APIs; repository resolution/tests use Flutter tooling
+because the shared model belongs to the Flutter runtime package. This is a narrow
+code-generation companion, not the optional process-execution bridge or a runner.
+
+**Verification evidence**
+
+- Real DevTools created an empty YAML when Record was confirmed, before actions.
+- Two text edits and a tap appeared in the live source as references and keyed
+  actions, without the fictional sentinel values typed during verification.
+- A screenshot saved immediately to a user-selected
+  `artifacts/recorder_captures` directory and was associated with the source.
+- A second real recording under the same `yaml_login` name replaced the source
+  with a new session, not another YAML file.
+- The CLI generated four Dart files from the
+  [actual saved YAML](../example/patrol_recorder/yaml_login.yml). Generated stubs
+  analyzed cleanly but intentionally required input implementation.
+- The [user-owned provider](../example/patrol_test/recorded_journeys/yaml_login/yaml_login_inputs.dart)
+  was manually connected to public test fixtures, and a navigation assertion was
+  added to the [test wrapper](../example/patrol_test/recorded_journeys/yaml_login/yaml_login_test.dart).
+  Regeneration preserved both files exactly; the updated test passed official
+  Patrol web execution with the secondary profile.
+- Automated tests cover YAML roundtrip, invalid literals/versions/selectors,
+  unfinished/unresolved sources, output regeneration/preservation, safe paths,
+  symlink rejection, immediate Record persistence, same-name replacement,
+  configured screenshot output, write failure/retry, and concurrent/foreign-file
+  refusal. Existing runtime/example tests remain in place.
+
+Final verification passed: **27 runtime/API tests, 15 generator/schema/CLI tests,
+4 recording-UI/persistence tests, and 6 example tests (52 total)**. All package
+analysis checks were clean. The rebuilt extension passed official validation;
+the complete Patrol web suite passed **6/6**, including the YAML-generated test.
+The YAML test also passed separately with secondary data. No package was published.
+
+**Remaining boundaries:** this is not equivalent to Maestro's production maturity
+or full command/platform coverage. There are no subflow/conditional/script APIs
+or generalized native/scroll/long-press recording. Unsupported actions still need
+review. Autosave is polling-based, not a durability guarantee for an event occurring
+just before the extension/app closes. Active/interrupted sources are rejected by
+the CLI. DTD has no atomic replacement API; local generated files use sibling
+temporary-file replacement, but a batch is not a multi-file transaction. Do not
+record/generate/edit the same journey concurrently.
+
+### Stable captures and complex UI
+
+The user requested stable screenshot identities for later external use, less
+bootstrap boilerplate, and a more representative example. No screenshot comparison,
+baseline/history engine, or visual regression functionality was added.
+
+**Screenshot naming and persistence**
+
+- Capture suggests a name from the active page's scoped semantics identifier,
+  scoped semantics label, named route, or public page widget type. Names are
+  normalized to safe identifiers; missing usable metadata falls back to `screen`.
+- A naming dialog previews the image and permits a state-specific override.
+  Repeated page captures suggest `_2`, `_3`, etc.; meaningful names such as
+  `animation_expanded` are preferable when flow order might change.
+- New image paths are stable:
+  `artifacts/recorder_captures/yaml_login/login_page.png` and
+  `artifacts/recorder_captures/yaml_login/account_overview.png`, for example.
+  The YAML supports multiple uniquely named screenshots.
+- Re-recording and capturing the same journey/name replaces only a recorder-owned
+  PNG. A small hidden `.name.recorder` text marker protects unrelated existing
+  images. Markers contain no session identity. Tests verify same-name output is
+  identical at the YAML/path level across runtime sessions.
+- Source YAML contains no `session_id`; runtime session tokens remain only in
+  live transport to detect app restarts. Record begins a fresh flow rather than
+  guessing whether an old on-disk capture belongs to a restarted app.
+- Legacy schema-1 sources remain readable. New recordings emit schema 2. Old
+  session directories and unreferenced images are not automatically deleted.
+
+**Bootstrap resolution**
+
+The previous `app.import`/`app.builder` block was a way to start the app during
+replay, not an interaction selector. New YAML no longer needs it:
+
+1. Read the selected application's package name from pubspec.
+2. Resolve `package:<name>/main.dart`.
+3. Use the Dart analyzer parser to verify a top-level `main` exists and can be
+   called without arguments. Missing/ambiguous functions, required parameters,
+   and syntax errors produce explicit generation errors.
+4. Emit `await Future<void>.sync(app.main); await $.pumpAndSettle();`, supporting
+   synchronous and asynchronous main initialization.
+
+Custom initialization cannot safely be reconstructed from the live widget tree.
+Apps needing a test-specific Widget factory can configure `app_import` and
+`app_builder` once under `pubspec.yaml > recorder_config`. Legacy schema-1 app
+metadata is honored for compatibility until re-recording. Existing users of a
+custom runtime config should move intentional custom bootstrap settings to pubspec.
+
+The test-only example entrypoint now uses `RecorderController()` without duplicate
+bootstrap metadata. The app's normal `main()` and root widget remain ordinary
+application code. The analyzer was already a formatter dependency; it is now
+declared directly in the development-only generator package, not the recorder runtime.
+
+**Expanded example coverage**
+
+| Surface | Added scenarios | Evidence/boundary |
+| --- | --- | --- |
+| Login/dashboard | Stable page semantics and navigation | Existing keyed login behavior retained; source contains no typed values |
+| Animation lab | Slide/scale, animated size/color, cross-fade, bounded loading, expansion tile | Finite animations complete; no claim for endless animation settling |
+| Repeated controls | Duplicate Continue labels and identical icon buttons in keyed cards | Ancestor scoping selects the intended card without coordinate/index fallback |
+| Forms/overlays | TextFormField validation, dropdown, bottom sheet and information dialog | Automatic input references and active-overlay capture names |
+| Settings | Switch/checkbox tiles, confirmation dialog, snackbar and long list | Tap workflows work; a real drag remains explicit review-required |
+
+Widget tests exercise these surfaces with an automatic recorder wrapper and no
+action hooks. Real DevTools recorded
+[complex_ui.yml](../example/patrol_recorder/complex_ui.yml), containing 16 actions
+and four named captures (`animation_expanded`, `repeated_controls`,
+`information_dialog`, `settings_reset`). The CLI generated its code and official
+Patrol web execution passed, including disambiguation of Continue within
+`business_card`. The re-recorded
+[yaml_login.yml](../example/patrol_recorder/yaml_login.yml) now uses schema 2 and
+stable login/account images; its test passed using inferred main and the existing
+secondary-profile input provider.
+
+These results expand the verified matrix rather than establish universal Flutter
+or native-platform support. Continuous animations, arbitrary custom gestures,
+native views, automatic scroll/long-press generation and whole-page capture
+remain outside the demonstrated slice.
+
 ## 15. Approval boundary
 
 **M1 and the requested bounded automatic-observation follow-up are complete.**
@@ -960,3 +1238,4 @@ Public sources were checked on 22 October 2026. Mutable documentation can advanc
 - **[S23]** [Maestro Android accessibility hierarchy implementation](https://github.com/mobile-dev-inc/Maestro/blob/main/maestro-android/src/androidTest/java/dev/mobile/maestro/ViewHierarchy.kt), inspected on 22 October 2026; GitHub file blob SHA `e23311f538c3667d1deccf7c0dc4756d9399fb6d`.
 - **[S24]** [`SemanticsBinding.addSemanticsActionListener`](https://api.flutter.dev/flutter/semantics/SemanticsBinding/addSemanticsActionListener.html) and [Flutter semantics binding source](https://github.com/flutter/flutter/blob/main/packages/flutter/lib/src/semantics/binding.dart).
 - **[S25]** [`FocusNode.context`](https://api.flutter.dev/flutter/widgets/FocusNode/context.html), [`EditableText.controller`](https://api.flutter.dev/flutter/widgets/EditableText/controller.html), and [`EditableText.obscureText`](https://api.flutter.dev/flutter/widgets/EditableText/obscureText.html). The installed SDK and the linked widget-harness experiments were also checked.
+- **[S26]** [Maestro Flows overview](https://docs.maestro.dev/maestro-flows/readme), [parameters/constants](https://docs.maestro.dev/maestro-flows/flow-control-and-logic/parameters-and-constants), and [selectors](https://docs.maestro.dev/maestro-flows/flow-control-and-logic/how-to-use-selectors), reviewed for the YAML architecture follow-up. Reference only, not a dependency or claim of compatibility.
