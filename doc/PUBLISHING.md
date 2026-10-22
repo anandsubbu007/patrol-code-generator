@@ -1,4 +1,8 @@
-# Publishing Patrol Recorder 0.0.1
+# Publishing Patrol Recorder 0.0.2
+
+The recorder's `0.0.1` release is already published. The next recorder release
+is `0.0.2`, which adds declared compatibility with all Flutter platforms.
+Preparation evidence below refers to the original `0.0.1` release.
 
 This checklist prepares two packages. It does not authorize an automated upload.
 Publishing makes an archive public; treat the released version as permanent.

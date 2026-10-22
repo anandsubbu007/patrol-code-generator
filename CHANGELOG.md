@@ -1,3 +1,8 @@
+## 0.0.2
+
+* Declare Android, iOS, Linux, macOS, web, and Windows compatibility. The
+  complete recording/replay workflow remains verified on Flutter web only.
+
 ## 0.0.1
 
 * Keep the recorder lightweight: generation lives in the separate

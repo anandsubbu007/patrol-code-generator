@@ -15,7 +15,7 @@ DevTools Record -> patrol_recorder/<journey>.yml
 
 No recording calls are needed in application button/text-field callbacks.
 Recording setup stays in a test-only entrypoint, not application `lib/`.
-This is an **experimental 0.0.1 package**, not a universal or production-certified
+This is an **experimental 0.0.2 package**, not a universal or production-certified
 recorder. Tested: Flutter 3.47.7 / Dart 3.13.5, DevTools 2.60.0, Patrol 4.10.0,
 Patrol CLI 4.8.0, Node 22.23.4, Flutter web.
 
@@ -29,12 +29,15 @@ Patrol CLI 4.8.0, Node 22.23.4, Flutter web.
 * Keep your input providers, setup, and outcome assertions when regenerating.
 * Capture visible Flutter screens with masking for marked private regions.
 
-**Verified recording/replay platform: Flutter web in Chrome-compatible browsers.**
-Android, iOS, desktop, native dialogs, and arbitrary custom gestures have not been
-validated for this release. Do not infer their support from Patrol's own platform
-coverage. Recording requires debug mode; keep the generator and Patrol as dev
-dependencies. The recorder can also be dev-only when imported only by a
-recording entrypoint outside application `lib/`.
+The recorder declares compatibility with all Flutter targets: Android, iOS, web,
+Linux, macOS, and Windows. Its runtime uses Flutter APIs and has no native plugin
+implementation. **The complete recording/replay workflow has only been verified
+on Flutter web in Chrome-compatible browsers**; Android, iOS, and desktop
+end-to-end integration remain unvalidated for this release. Native dialogs and
+arbitrary custom gestures are not supported. Do not infer end-to-end verification
+from Patrol's own platform coverage. Recording requires debug mode; keep the
+generator and Patrol as dev dependencies. The recorder can also be dev-only when
+imported only by a recording entrypoint outside application `lib/`.
 Patrol Recorder is an independent project, not an official Patrol product.
 
 ## Screenshots and demo
@@ -57,13 +60,13 @@ shows the app UI only, not a complete recording/replay verification.
 
 ## Install from pub.dev
 
-The following hosted setup applies **after 0.0.1 is published**.
+The following hosted setup applies **after 0.0.2 is published**.
 Until then, use the [repository setup](#setup-and-record).
 
 In your Flutter app:
 
 ```sh
-flutter pub add --dev patrol_recorder:^0.0.1 patrol_recorder_generator:^0.0.1 patrol:4.10.0
+flutter pub add --dev patrol_recorder:^0.0.2 patrol_recorder_generator:^0.0.1 patrol:4.10.0
 dart pub global activate patrol_cli 4.8.0
 ```
 
@@ -74,7 +77,7 @@ put **only the recorder** in regular dependencies instead:
 dependencies:
   flutter:
     sdk: flutter
-  patrol_recorder: ^0.0.1
+  patrol_recorder: ^0.0.2
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -480,7 +483,7 @@ After publication, for a test-only recording entrypoint:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  patrol_recorder: ^0.0.1
+  patrol_recorder: ^0.0.2
   patrol_recorder_generator: ^0.0.1
   patrol: 4.10.0
 
@@ -690,7 +693,8 @@ private content, and authenticated VM Service/DTD URLs before sharing.
 
 ## Publication status
 
-Both packages are prepared for **0.0.1**; preparation is not publication.
-Follow the [release checklist](doc/PUBLISHING.md): publish the lightweight recorder
-first, then validate and publish the generator against its hosted dependency.
+The recorder's **0.0.1** release is published; **0.0.2** adds declared Flutter
+platform compatibility. The generator remains a separate package at **0.0.1**.
+Follow the [release checklist](doc/PUBLISHING.md) to validate its hosted dependency
+and prepare its release independently.
 The example and extension source app intentionally remain unpublished.

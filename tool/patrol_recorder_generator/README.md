@@ -9,7 +9,7 @@ providers and test wrappers. It does not record interactions or execute tests.
 After both packages are published:
 
 ```sh
-flutter pub add patrol_recorder:^0.0.1
+flutter pub add patrol_recorder:^0.0.2
 flutter pub add --dev patrol_recorder_generator:^0.0.1 patrol:4.10.0
 ```
 
@@ -64,8 +64,9 @@ for recording, supported interactions, configuration, screenshots, and privacy.
 
 The local `pubspec_overrides.yaml` resolves `patrol_recorder` from the checkout.
 It is excluded from the published archive. The release manifest uses the hosted
-dependency `patrol_recorder: ^0.0.1`; publish that package first. The repository
-root excludes `tool/` from its runtime archive, and Pub inherits those exclusions.
+dependency `patrol_recorder: ^0.0.1`; it is compatible with the newer recorder
+release. The repository root excludes `tool/` from its runtime archive, and Pub
+inherits those exclusions.
 For generator publication, stage its source and release metadata outside the
 checkout without the local override, then validate hosted-only resolution.
 Follow the [release checklist](https://github.com/anandsubbu007/patrol-code-generator/blob/main/doc/PUBLISHING.md)
