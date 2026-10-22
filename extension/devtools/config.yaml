@@ -1,0 +1,5 @@
+name: patrol_recorder
+issueTracker: https://example.invalid/patrol-recorder/issues
+version: 0.0.1
+materialIconCodePoint: '0xe047'
+requiresConnection: false

@@ -1,0 +1,6 @@
+schema_version: 1
+output_directory: patrol_test/recorded_journeys
+journey_id: login
+case_id: sign_in
+case_name: Sign in with demonstration profile
+profile: demo

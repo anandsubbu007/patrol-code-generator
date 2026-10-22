@@ -1,0 +1,70 @@
+{
+  "protocolVersion": 1,
+  "state": "stopped",
+  "sessionId": "session_1792644650631000",
+  "sequence": 3,
+  "steps": [
+    {
+      "id": "step_0001",
+      "action": "enterText",
+      "target": {
+        "key": "email",
+        "semanticsIdentifier": null
+      },
+      "input": "email",
+      "secret": false,
+      "source": "instrumentedCallback"
+    },
+    {
+      "id": "step_0002",
+      "action": "enterText",
+      "target": {
+        "key": "note",
+        "semanticsIdentifier": null
+      },
+      "input": "note",
+      "secret": false,
+      "source": "instrumentedCallback"
+    },
+    {
+      "id": "step_0003",
+      "action": "tap",
+      "target": {
+        "key": "login",
+        "semanticsIdentifier": "demo.login"
+      },
+      "input": null,
+      "secret": false,
+      "source": "instrumentedCallback"
+    }
+  ],
+  "config": {
+    "appImport": "package:patrol_recorder_example/app.dart",
+    "appBuilder": "createApp",
+    "safeProfiles": {
+      "demo": {
+        "email": "demo@example.invalid",
+        "note": "Personal demonstration"
+      },
+      "secondary": {
+        "email": "second@example.invalid",
+        "note": "Secondary demonstration"
+      }
+    }
+  },
+  "error": null,
+  "capabilities": [
+    "instrumentedTap",
+    "inputReference",
+    "flutterContentScreenshot"
+  ],
+  "screenshot": {
+    "kind": "flutterContent",
+    "width": 2392,
+    "height": 1669,
+    "stepId": "step_0003",
+    "sessionId": "session_1792644650631000",
+    "path": "patrol_test/recorded_journeys/browser_verified/screenshots/session_1792644650631000_step_0003_flutter.png"
+  },
+  "type": "Response"
+}
