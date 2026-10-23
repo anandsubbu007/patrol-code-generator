@@ -62,6 +62,7 @@ class RecorderController extends ChangeNotifier {
   final RecorderAppConfig config;
   final int maxSteps;
   final _boundaryKey = GlobalKey();
+  final _appKey = GlobalKey();
   final _steps = <RecordedStep>[];
   RecordingState _state = RecordingState.ready;
   String? _sessionId;
@@ -70,6 +71,96 @@ class RecorderController extends ChangeNotifier {
   _RecorderObserver? _observer;
   int _captures = 0;
   int _revision = 0;
+  bool _selecting = false;
+  RecorderTarget? _selection;
+  Rect? _selectionRect;
+  Timer? _selectionTimer;
+
+  void beginSelection() {
+    if (!kDebugMode || _state != RecordingState.recording || _capturing) {
+      throw StateError(
+        'Start recording before selecting an expectation target.',
+      );
+    }
+    _observer?.flushScroll();
+    _observer?.stop();
+    _selection = null;
+    _selectionRect = null;
+    _selecting = true;
+    _selectionTimer?.cancel();
+    _selectionTimer = Timer(const Duration(minutes: 2), cancelSelection);
+    _changed();
+  }
+
+  void cancelSelection() {
+    if (!_selecting) return;
+    _selecting = false;
+    _selection = null;
+    _selectionRect = null;
+    _selectionTimer?.cancel();
+    if (_state == RecordingState.recording) _observer?.start(resume: true);
+    _changed();
+  }
+
+  void confirmExpectation(ExpectationSpec expectation) {
+    final target = _selection;
+    if (!_selecting || target?.selector == null) {
+      throw StateError('Select a uniquely identified widget first.');
+    }
+    _record(
+      RecordedAction.expect,
+      target!,
+      source: ObservationSource.authored,
+      expectation: expectation,
+    );
+    cancelSelection();
+  }
+
+  void _selectAt(Offset position) {
+    if (!_selecting || _selection?.selector != null) return;
+    final root = _appKey.currentContext;
+    if (root is! Element) return;
+    final tree = _TargetTree(root);
+    Element? selected;
+    final appRender = root.findRenderObject();
+    if (appRender is RenderBox && appRender.attached && appRender.hasSize) {
+      final hits = BoxHitTestResult();
+      appRender.hitTest(hits, position: appRender.globalToLocal(position));
+      for (final entry in hits.path) {
+        final render = entry.target;
+        if (render is RenderObject && render.debugCreator is DebugCreator) {
+          final element = (render.debugCreator as DebugCreator).element;
+          if (_within(element, root)) {
+            selected = element;
+            break;
+          }
+        }
+      }
+    }
+    final control = selected == null
+        ? null
+        : _observer?._control(selected) ?? selected;
+    _selection = selected == null
+        ? RecorderTarget(issue: 'No widget at this position.')
+        : tree.private(selected)
+        ? RecorderTarget(
+            issue: 'Private or ignored widgets cannot be selected.',
+          )
+        : tree.resolve(control!);
+    final render = control?.findRenderObject();
+    final boundary = _boundaryKey.currentContext?.findRenderObject();
+    _selectionRect =
+        render is RenderBox &&
+            boundary is RenderRepaintBoundary &&
+            render.attached &&
+            render.hasSize
+        ? MatrixUtils.transformRect(
+            render.getTransformTo(boundary),
+            Offset.zero & render.size,
+          )
+        : null;
+    _changed();
+  }
 
   RecordingState get state => _state;
   List<RecordedStep> get steps => List.unmodifiable(_steps);
@@ -92,6 +183,10 @@ class RecorderController extends ChangeNotifier {
       _captures = 0;
     }
     _steps.clear();
+    _selecting = false;
+    _selection = null;
+    _selectionRect = null;
+    _selectionTimer?.cancel();
     _revision = 0;
     _error = null;
     _state = RecordingState.recording;
@@ -105,6 +200,10 @@ class RecorderController extends ChangeNotifier {
     }
     _observer?.flushScroll();
     _state = RecordingState.stopped;
+    _selecting = false;
+    _selection = null;
+    _selectionRect = null;
+    _selectionTimer?.cancel();
     _observer?.stop();
     _changed();
   }
@@ -127,6 +226,7 @@ class RecorderController extends ChangeNotifier {
     String? text,
     RecorderTarget? scrollView,
     RecordedScrollDirection? scrollDirection,
+    ExpectationSpec? expectation,
   }) {
     if (!kDebugMode || _state != RecordingState.recording) return;
     if (input != null) requireIdentifier(input, 'Input reference');
@@ -158,6 +258,7 @@ class RecorderController extends ChangeNotifier {
         text: text,
         scrollView: scrollView,
         scrollDirection: scrollDirection,
+        expectation: expectation,
       ),
     );
     _changed();
@@ -172,6 +273,8 @@ class RecorderController extends ChangeNotifier {
     'config': config.toJson(),
     'error': _error,
     'screenshotSupported': kDebugMode,
+    'selecting': _selecting,
+    'selection': _selection?.toJson(),
     'capabilities': [
       'automaticTapCandidates',
       'focusedInputReferences',
@@ -181,6 +284,7 @@ class RecorderController extends ChangeNotifier {
       'inlineTextTap',
       'targetBasedScroll',
       'longPressCandidates',
+      'expectationPicker',
     ],
   };
 
@@ -305,6 +409,9 @@ class RecorderController extends ChangeNotifier {
 
   Future<RecorderScreenshot> capture() async {
     if (!kDebugMode) throw StateError('Capture requires a debug app.');
+    if (_selecting) {
+      throw StateError('Confirm or cancel widget selection before capturing.');
+    }
     if (_capturing) throw StateError('A screenshot is already in progress.');
     _sessionId ??= 'session_${DateTime.now().microsecondsSinceEpoch}';
     final sessionId = _sessionId!;
@@ -391,6 +498,16 @@ void _registerService() {
           recorder.start();
         case 'stop':
           recorder.stop();
+        case 'selectTarget':
+          recorder.beginSelection();
+        case 'cancelSelection':
+          recorder.cancelSelection();
+        case 'confirmExpectation':
+          final raw = jsonDecode(parameters['expectation'] ?? 'null');
+          if (raw is! Map<String, dynamic>) {
+            throw const FormatException('An expectation mapping is required.');
+          }
+          recorder.confirmExpectation(ExpectationSpec.fromJson(raw));
         case 'capture':
           final screenshot = await recorder.capture();
           return developer.ServiceExtensionResponse.result(
@@ -464,6 +581,7 @@ class _RecorderScopeState extends State<RecorderScope> {
 
   @override
   void dispose() {
+    widget.controller._selectionTimer?.cancel();
     widget.controller._observer?.dispose();
     widget.controller._observer = null;
     if (identical(_activeRecorder, widget.controller)) _activeRecorder = null;
@@ -473,16 +591,58 @@ class _RecorderScopeState extends State<RecorderScope> {
   @override
   Widget build(BuildContext context) {
     if (!kDebugMode) return widget.child;
-    return _RecorderInherited(
-      controller: widget.controller,
-      child: RepaintBoundary(
-        key: widget.controller._boundaryKey,
-        child: NotificationListener<ScrollNotification>(
-          onNotification: (notification) {
-            widget.controller._observer?.observeScroll(notification);
-            return false;
-          },
-          child: widget.child,
+    return ListenableBuilder(
+      listenable: widget.controller,
+      builder: (context, _) => _RecorderInherited(
+        controller: widget.controller,
+        child: RepaintBoundary(
+          key: widget.controller._boundaryKey,
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (notification) {
+              widget.controller._observer?.observeScroll(notification);
+              return false;
+            },
+            child: Stack(
+              alignment: Alignment.topLeft,
+              fit: StackFit.passthrough,
+              children: [
+                KeyedSubtree(
+                  key: widget.controller._appKey,
+                  child: widget.child,
+                ),
+                if (widget.controller._selecting &&
+                    widget.controller._selectionRect != null)
+                  Positioned.fromRect(
+                    rect: widget.controller._selectionRect!,
+                    child: IgnorePointer(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: const Color(0xFF00A878),
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                if (widget.controller._selecting)
+                  Positioned.fill(
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.precise,
+                      child: Listener(
+                        behavior: HitTestBehavior.opaque,
+                        onPointerDown: (event) {
+                          if (event.buttons == kPrimaryButton) {
+                            widget.controller._selectAt(event.position);
+                          }
+                        },
+                        child: const ColoredBox(color: Color(0x0800A878)),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );

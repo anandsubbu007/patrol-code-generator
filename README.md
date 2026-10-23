@@ -21,13 +21,13 @@ Patrol CLI 4.8.0, Node 22.23.4, Flutter web.
 
 ## At a glance
 
-* Observe supported Flutter controls without adding recording callbacks.
-* Save editable-test source as named YAML journeys; text values become typed
+- Observe supported Flutter controls without adding recording callbacks.
+- Save editable-test source as named YAML journeys; text values become typed
   input references, never recorded credentials.
-* Generate ordinary Patrol code with the development-only
+- Generate ordinary Patrol code with the development-only
   `patrol_recorder_generator` companion.
-* Keep your input providers, setup, and outcome assertions when regenerating.
-* Capture visible Flutter screens with masking for marked private regions.
+- Keep your input providers, setup, and outcome assertions when regenerating.
+- Capture visible Flutter screens with masking for marked private regions.
 
 The recorder declares compatibility with all Flutter targets: Android, iOS, web,
 Linux, macOS, and Windows. Its runtime uses Flutter APIs and has no native plugin
@@ -46,8 +46,8 @@ These are real captures of the local example using fictional data, not mockups.
 
 ![Connected Patrol Recorder DevTools panel](doc/images/recorder.png)
 
-| Start a journey | Reach an outcome |
-| --- | --- |
+| Start a journey                              | Reach an outcome                                 |
+| -------------------------------------------- | ------------------------------------------------ |
 | ![Demonstration login](doc/images/login.png) | ![Demo account overview](doc/images/account.png) |
 
 ![Repeated controls requiring scoped selectors](doc/images/repeated-controls.png)
@@ -207,6 +207,44 @@ also save explicitly. A write failure shows **YAML NOT UP TO DATE** and **Retry
 YAML save**; keep DevTools open until saving succeeds. An interrupted recording
 remains marked `recording`, and the generator refuses to pretend it is complete.
 
+### Add an expectation
+
+During recording, click **Add expectation**, then tap a widget in the running
+Flutter app. The selection tap does not activate the control or record a tap.
+Review its stable selector, choose an expectation and timeout, then click
+**Save expectation**. Cancel adds nothing. Selection expires after two minutes;
+private/ignored regions and unresolved targets cannot be confirmed. Rebuild the
+DevTools extension and restart the app when updating to protocol 6.
+
+Schema 4 also accepts manually authored assertions (edit only after stopping):
+
+```yaml
+- id: account_ready
+  action: expect
+  source: authored
+  include: true
+  target:
+    key: account_title
+  expectation:
+    kind: text
+    value: Account overview
+    timeout_ms: 10000
+```
+
+Supported kinds: `exists` (exactly one match), `absent` (zero matches), `visible`
+(one hit-testable match), `text` (one target containing exactly one matching
+Text/RichText, including the target itself), and `count` (a nonnegative integer).
+Only `text` and `count` take `value`. Text is an exact, nonempty string of at most
+1000 characters, supplied explicitly, never read from editable fields. Do not put
+secrets in expected text. Timeout defaults to 10000 ms and must be 100-120000 ms.
+Generated checks poll without settling until satisfied or timed out; `absent`
+means absent at a check, not continuously absent over the whole timeout.
+Missing, unsupported, or misplaced expectations fail validation rather than
+being skipped. Count assertions may deliberately match multiple widgets.
+
+Asset steps, multiple cases/groups, and typed fixture/setup expansion remain
+planned M2 work; this picker authors expectations only.
+
 Using the **same journey name replaces the previous recorder-owned YAML**.
 That is the normal way to update a flow. No manual YAML edits are required.
 Unrecognized files or concurrent external edits are not silently overwritten.
@@ -288,12 +326,12 @@ patrol_test/recorded_journeys/login/
   login_steps.g.dart
 ```
 
-| File | Ownership |
-| --- | --- |
-| `*_inputs.g.dart` | Generated abstract `JourneyInputs` contract and validation |
-| `*_steps.g.dart` | Generated normal Patrol actions, current test name and case tag |
-| `*_inputs.dart` | One-time user implementation scaffold; **never overwritten** |
-| `*_test.dart` | One-time Patrol entrypoint for setup/assertions; **never overwritten** |
+| File              | Ownership                                                              |
+| ----------------- | ---------------------------------------------------------------------- |
+| `*_inputs.g.dart` | Generated abstract `JourneyInputs` contract and validation             |
+| `*_steps.g.dart`  | Generated normal Patrol actions, current test name and case tag        |
+| `*_inputs.dart`   | One-time user implementation scaffold; **never overwritten**           |
+| `*_test.dart`     | One-time Patrol entrypoint for setup/assertions; **never overwritten** |
 
 The CLI prints every generated/preserved path and the next commands.
 Generation does not execute the test and does not inject real data.
@@ -524,15 +562,15 @@ allocated automatically, such as `{{input_0001}}`.
 Import `package:patrol_recorder/patrol_recorder.dart` only from your debug
 recording entrypoint:
 
-| API | Purpose |
-| --- | --- |
-| `RecorderController()` | Owns a recording's state and automatic observations; default limit is 500 steps |
-| `RecorderScope(controller: ..., child: ...)` | Wraps the app root and installs debug observation/capture |
-| `RecorderSensitive(child: ...)` | Marks a subtree for screenshot masking; interactions may still be observed |
-| `RecorderIgnore(child: ...)` | Excludes subtree interactions and masks its screenshot region |
-| `controller.state`, `steps`, `error` | Inspect recording status, read-only actions, and visible failure state |
-| `controller.start()`, `stop()` | Programmatic lifecycle; normally driven by the DevTools panel |
-| `controller.dispose()` | Releases controller resources when its owner no longer needs it |
+| API                                          | Purpose                                                                         |
+| -------------------------------------------- | ------------------------------------------------------------------------------- |
+| `RecorderController()`                       | Owns a recording's state and automatic observations; default limit is 500 steps |
+| `RecorderScope(controller: ..., child: ...)` | Wraps the app root and installs debug observation/capture                       |
+| `RecorderSensitive(child: ...)`              | Marks a subtree for screenshot masking; interactions may still be observed      |
+| `RecorderIgnore(child: ...)`                 | Excludes subtree interactions and masks its screenshot region                   |
+| `controller.state`, `steps`, `error`         | Inspect recording status, read-only actions, and visible failure state          |
+| `controller.start()`, `stop()`               | Programmatic lifecycle; normally driven by the DevTools panel                   |
+| `controller.dispose()`                       | Releases controller resources when its owner no longer needs it                 |
 
 The separate `package:patrol_recorder_generator/generator.dart` library exposes YAML
 journey parsing, generation, and workspace export contracts for tool integrations.
@@ -575,19 +613,19 @@ Do not assume arbitrary app-specific initialization can be inferred automaticall
 
 ## Limits and troubleshooting
 
-| Symptom | Action |
-| --- | --- |
-| Extension missing/unavailable | Build/copy/validate extension assets; run the debug recording entrypoint; enable the real DevTools extension |
-| Protocol mismatch | Restart the recording app and reload rebuilt DevTools assets; runtime protocol is 5, new YAML schema is 3 |
-| No destination | Refresh authorized projects using a Flutter/IDE DTD session; never use an unrestricted daemon |
-| YAML NOT UP TO DATE | Keep the draft open; resolve permissions/concurrent edits and Retry YAML save |
-| App restarted or browser closed | Last persisted YAML survives. Re-record the same name if the source remains unfinished; do not treat an interrupted flow as complete |
-| Generator rejects active recording | Stop in DevTools and verify the source is saved as stopped |
-| Unknown/ambiguous target | Add a stable key/ancestor, re-record, or explicitly exclude an unnecessary action; never use `.first`/coordinates as a silent fix |
+| Symptom                                | Action                                                                                                                                                                                |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Extension missing/unavailable          | Build/copy/validate extension assets; run the debug recording entrypoint; enable the real DevTools extension                                                                          |
+| Protocol mismatch                      | Restart the recording app and reload rebuilt DevTools assets; runtime protocol is 5, new YAML schema is 3                                                                             |
+| No destination                         | Refresh authorized projects using a Flutter/IDE DTD session; never use an unrestricted daemon                                                                                         |
+| YAML NOT UP TO DATE                    | Keep the draft open; resolve permissions/concurrent edits and Retry YAML save                                                                                                         |
+| App restarted or browser closed        | Last persisted YAML survives. Re-record the same name if the source remains unfinished; do not treat an interrupted flow as complete                                                  |
+| Generator rejects active recording     | Stop in DevTools and verify the source is saved as stopped                                                                                                                            |
+| Unknown/ambiguous target               | Add a stable key/ancestor, re-record, or explicitly exclude an unnecessary action; never use `.first`/coordinates as a silent fix                                                     |
 | Scroll/long press/custom/native action | Flutter scrollables and identifiable long-press targets are observed; unsupported custom/native gestures remain review-required. Add unique stable keys and check the recorded target |
-| Missing input getter/value | Implement the abstract contract in the preserved input file; the YAML intentionally contains no values |
-| Existing generated file not recognized | Use a new journey name or reconcile the file manually; handwritten output is not overwritten |
-| Duplicate test execution | Keep only actual tests named `*_test.dart`; do not import discoverable tests from another discoverable entrypoint |
+| Missing input getter/value             | Implement the abstract contract in the preserved input file; the YAML intentionally contains no values                                                                                |
+| Existing generated file not recognized | Use a new journey name or reconcile the file manually; handwritten output is not overwritten                                                                                          |
+| Duplicate test execution               | Keep only actual tests named `*_test.dart`; do not import discoverable tests from another discoverable entrypoint                                                                     |
 
 Ordinary pointer taps are candidates, not callback-success proof. Accessibility
 events are requests before dispatch. Field notifications can include selection,
@@ -627,12 +665,12 @@ Run button, visual regression, AI/cloud analysis, or custom E2E engine is includ
 
 The account overview links to a [UI laboratory](example/lib/showcase.dart):
 
-| Screen | Scenarios | Verified boundary |
-| --- | --- | --- |
-| Animation lab | Slide/scale, animated size/color, cross-fade, bounded loading, expansion | Finite animations record/replay; not a claim about indefinite animations |
-| Repeated controls | Two Continue buttons and identical icon types in keyed cards | Unique ancestor scoping; no positional selector fallback |
-| Forms and overlays | Validation, text entry, dropdown, modal sheet, information dialog | Input references and overlay-specific screenshot names |
-| Account settings | Switch/checkbox tiles, confirmation dialog, snackbar, long list | Stable-target scrolling and supported tap actions |
+| Screen             | Scenarios                                                                | Verified boundary                                                        |
+| ------------------ | ------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| Animation lab      | Slide/scale, animated size/color, cross-fade, bounded loading, expansion | Finite animations record/replay; not a claim about indefinite animations |
+| Repeated controls  | Two Continue buttons and identical icon types in keyed cards             | Unique ancestor scoping; no positional selector fallback                 |
+| Forms and overlays | Validation, text entry, dropdown, modal sheet, information dialog        | Input references and overlay-specific screenshot names                   |
+| Account settings   | Switch/checkbox tiles, confirmation dialog, snackbar, long list          | Stable-target scrolling and supported tap actions                        |
 
 See [example instructions](example/README.md) for a reproducible walkthrough and
 the [recorded complex journey](example/patrol_recorder/complex_ui.yml). This expands

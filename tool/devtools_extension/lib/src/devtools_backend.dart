@@ -38,14 +38,17 @@ class DevToolsRecorderBackend implements RecorderBackend {
   }
 
   @override
-  Future<Map<String, dynamic>> command(String command) async {
+  Future<Map<String, dynamic>> command(
+    String command, {
+    Map<String, String> parameters = const {},
+  }) async {
     if (serviceManager.service == null) {
       throw StateError('No app VM Service is connected.');
     }
     final response = await serviceManager
         .callServiceExtensionOnMainIsolate(
           recorderServiceMethod,
-          args: {'command': command},
+          args: {...parameters, 'command': command},
         )
         .timeout(const Duration(seconds: 15));
     final json = response.json;

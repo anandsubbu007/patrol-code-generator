@@ -377,6 +377,13 @@ Future<JourneyInputs> loadInputs() async {
         final name = 'target${index + 1}';
         final matches = 'matches${index + 1}';
         final timeout = 'const Duration(milliseconds: ${config.waitTimeoutMs})';
+        if (step.action == RecordedAction.expect) {
+          final expectation = step.expectation!;
+          return 'await _recorderExpect(\$.tester, ${finder(step.target)}, '
+              '${dartLiteral(expectation.kind.name)}, '
+              '${expectation.value is String ? dartLiteral(expectation.value as String) : expectation.value}, '
+              'const Duration(milliseconds: ${expectation.timeoutMs}), ${dartLiteral(step.id)});';
+        }
         final advice =
             '${step.id} (${step.action.name}) failed. Target: ${step.target.toJson()}. '
             'Add a unique ValueKey to this widget/scroll view or a keyed ancestor if ambiguous. '
@@ -397,6 +404,7 @@ await \$.tester.tapOnText(link${index + 1});
 await \$.pump();
 ''',
           RecordedAction.scrollUntilVisible => '',
+          RecordedAction.expect => '',
           RecordedAction.unsupported => throw const FormatException(
             'Unsupported action.',
           ),
@@ -491,6 +499,38 @@ Future<void> runRecordedJourney(PatrolIntegrationTester \$, JourneyInputs inputs
   final semantics = \$.tester.ensureSemantics();
   try { $body } finally { semantics.dispose(); }
 }
+
+${steps.any((step) => step.action == RecordedAction.expect) ? '''
+Future<void> _recorderExpect(WidgetTester tester, Finder target,
+    String kind, Object? value, Duration timeout, String stepId) async {
+  final clock = Stopwatch()..start();
+  var pumped = Duration.zero;
+  var count = 0;
+  while (true) {
+    count = target.evaluate().length;
+    final passed = switch (kind) {
+      'exists' => count == 1,
+      'absent' => count == 0,
+      'count' => count == value,
+      'visible' => count == 1 && target.hitTestable().evaluate().length == 1,
+      'text' => count == 1 && find.descendant(of: target,
+        matching: find.text(value as String, findRichText: true),
+        matchRoot: true).evaluate().length == 1,
+      _ => throw StateError('Unsupported expectation: \$kind'),
+    };
+    if (passed) return;
+    if (clock.elapsed >= timeout || pumped >= timeout) {
+      throw TestFailure('\$stepId: expect \$kind failed after \${timeout.inMilliseconds} ms. '
+        'Target: \$target. Matching widgets: \$count.');
+    }
+    final remaining = timeout - pumped;
+    final delay = remaining < const Duration(milliseconds: 50)
+        ? remaining : const Duration(milliseconds: 50);
+    await tester.pump(delay);
+    pumped += delay;
+  }
+}
+''' : ''}
 
 ${needsEnabled ? '''
 bool _recorderEnabled(Element element) {

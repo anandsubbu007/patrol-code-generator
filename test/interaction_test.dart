@@ -10,6 +10,129 @@ import 'package:patrol_recorder/patrol_recorder.dart';
 import 'support/recording.dart';
 
 void main() {
+  testWidgets('selection expiry and stop release the input shield', (
+    tester,
+  ) async {
+    var taps = 0;
+    await recording(
+      tester,
+      FilledButton(
+        key: const ValueKey('action'),
+        onPressed: () => taps++,
+        child: const Text('Action'),
+      ),
+      (recorder) async {
+        recorder.start();
+        recorder.beginSelection();
+        await tester.pump();
+        await tester.pump(const Duration(minutes: 2));
+        expect(recorder.snapshot()['selecting'], false);
+        await tester.tap(find.text('Action'));
+        await tester.pump();
+        expect(taps, 1);
+        expect(recorder.steps.single.action, RecordedAction.tap);
+        recorder.beginSelection();
+        recorder.stop();
+        await tester.pump();
+        expect(recorder.snapshot()['selecting'], false);
+        await tester.tap(find.text('Action'));
+        expect(taps, 2);
+        expect(recorder.steps, hasLength(1));
+      },
+    );
+  });
+
+  testWidgets(
+    'expectation picking consumes taps and saves only on confirmation',
+    (tester) async {
+      var taps = 0;
+      await recording(
+        tester,
+        FilledButton(
+          key: const ValueKey('save'),
+          onPressed: () => taps++,
+          child: const Text('Save'),
+        ),
+        (recorder) async {
+          recorder.start();
+          recorder.beginSelection();
+          await tester.pump();
+          await tester.tapAt(tester.getCenter(find.text('Save')));
+          await tester.pump();
+          expect(taps, 0);
+          expect(recorder.steps, isEmpty);
+          final target = RecorderTarget.fromJson(
+            Map<String, dynamic>.from(recorder.snapshot()['selection']! as Map),
+          );
+          expect(target.key, 'save');
+          recorder.confirmExpectation(
+            ExpectationSpec(kind: RecordedExpectation.visible),
+          );
+          await tester.pump();
+          expect(recorder.steps.single.action, RecordedAction.expect);
+          expect(
+            recorder.steps.single.expectation!.kind,
+            RecordedExpectation.visible,
+          );
+          expect(
+            RecordedStep.fromJson(
+              Map<String, dynamic>.from(recorder.steps.single.toJson()),
+            ).expectation!.timeoutMs,
+            10000,
+          );
+          await tester.tap(find.text('Save'));
+          await tester.pump();
+          expect(taps, 1);
+          expect(recorder.steps.last.action, RecordedAction.tap);
+        },
+      );
+    },
+  );
+
+  testWidgets('selection supports plain text and cancel saves nothing', (
+    tester,
+  ) async {
+    await recording(tester, const Text('Ready'), (recorder) async {
+      recorder.start();
+      recorder.beginSelection();
+      await tester.pump();
+      await tester.tapAt(tester.getCenter(find.text('Ready')));
+      final selection = recorder.snapshot()['selection']! as Map;
+      expect(selection['issue'], isNull);
+      recorder.cancelSelection();
+      expect(recorder.steps, isEmpty);
+      expect(recorder.snapshot()['selecting'], false);
+      expect(
+        () => recorder.confirmExpectation(
+          ExpectationSpec(kind: RecordedExpectation.exists),
+        ),
+        throwsStateError,
+      );
+    });
+  });
+
+  testWidgets('private text cannot be selected for an expectation', (
+    tester,
+  ) async {
+    await recording(
+      tester,
+      const RecorderSensitive(child: Text('SECRET_SENTINEL')),
+      (recorder) async {
+        recorder.start();
+        recorder.beginSelection();
+        await tester.pump();
+        await tester.tapAt(tester.getCenter(find.text('SECRET_SENTINEL')));
+        expect((recorder.snapshot()['selection']! as Map)['selector'], isNull);
+        expect(
+          jsonEncode(recorder.snapshot()),
+          isNot(contains('SECRET_SENTINEL')),
+        );
+        recorder.cancelSelection();
+        expect(recorder.steps, isEmpty);
+      },
+    );
+  });
+
   testWidgets(
     'scroll position observation survives consumed notifications and detaches on stop',
     (tester) async {

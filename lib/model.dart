@@ -3,7 +3,7 @@ library;
 
 import 'dart:convert';
 
-const recorderProtocolVersion = 5;
+const recorderProtocolVersion = 6;
 const recorderServiceMethod = 'ext.patrol_recorder.command';
 const recorderEventKind = 'patrol_recorder.changed';
 
@@ -15,7 +15,57 @@ enum RecordedAction {
   longPress,
   enterText,
   scrollUntilVisible,
+  expect,
   unsupported,
+}
+
+enum RecordedExpectation { exists, absent, visible, text, count }
+
+class ExpectationSpec {
+  ExpectationSpec({required this.kind, this.value, this.timeoutMs = 10000}) {
+    if (timeoutMs < 100 || timeoutMs > 120000) {
+      throw const FormatException('Expectation timeout_ms must be 100-120000.');
+    }
+    final valid = switch (kind) {
+      RecordedExpectation.text =>
+        value is String &&
+            (value as String).isNotEmpty &&
+            (value as String).length <= 1000,
+      RecordedExpectation.count => value is int && (value as int) >= 0,
+      _ => value == null,
+    };
+    if (!valid) {
+      throw FormatException('Invalid value for expect ${kind.name}.');
+    }
+  }
+
+  final RecordedExpectation kind;
+  final Object? value;
+  final int timeoutMs;
+
+  Map<String, Object?> toJson() => {
+    'kind': kind.name,
+    if (value != null) 'value': value,
+    'timeout_ms': timeoutMs,
+  };
+
+  factory ExpectationSpec.fromJson(Map<String, dynamic> json) {
+    final kinds = RecordedExpectation.values.where(
+      (kind) => kind.name == json['kind'],
+    );
+    if (kinds.length != 1 ||
+        json.keys.any(
+          (key) => !{'kind', 'value', 'timeout_ms'}.contains(key),
+        ) ||
+        json['timeout_ms'] != null && json['timeout_ms'] is! int) {
+      throw const FormatException('Unsupported or incomplete expectation.');
+    }
+    return ExpectationSpec(
+      kind: kinds.single,
+      value: json['value'],
+      timeoutMs: json['timeout_ms'] as int? ?? 10000,
+    );
+  }
 }
 
 enum RecordedScrollDirection { up, down, left, right }
@@ -31,6 +81,7 @@ enum SelectorKind {
 }
 
 enum ObservationSource {
+  authored,
   pointerGesture,
   semanticsAction,
   focusedController,
@@ -178,8 +229,20 @@ class RecordedStep {
     this.text,
     this.scrollView,
     this.scrollDirection,
+    this.expectation,
   }) {
     requireIdentifier(id, 'Step ID');
+    if (action == RecordedAction.expect) {
+      if (expectation == null || target.selector == null) {
+        throw const FormatException(
+          'Expect requires a resolved target and expectation.',
+        );
+      }
+    } else if (expectation != null) {
+      throw const FormatException(
+        'Only expect steps can contain an expectation.',
+      );
+    }
     if (action == RecordedAction.enterText) {
       if (input == null) {
         throw const FormatException('Text entry requires an input reference.');
@@ -221,6 +284,7 @@ class RecordedStep {
   final String? text;
   final RecorderTarget? scrollView;
   final RecordedScrollDirection? scrollDirection;
+  final ExpectationSpec? expectation;
 
   Map<String, Object?> toJson() => {
     'id': id,
@@ -232,6 +296,7 @@ class RecordedStep {
     if (text != null) 'text': text,
     if (scrollView != null) 'scrollView': scrollView!.toJson(),
     if (scrollDirection != null) 'scrollDirection': scrollDirection!.name,
+    if (expectation != null) 'expectation': expectation!.toJson(),
   };
 
   factory RecordedStep.fromJson(Map<String, dynamic> json) {
@@ -241,6 +306,7 @@ class RecordedStep {
       'longPress' => RecordedAction.longPress,
       'scrollUntilVisible' => RecordedAction.scrollUntilVisible,
       'enterText' => RecordedAction.enterText,
+      'expect' => RecordedAction.expect,
       'unsupported' => RecordedAction.unsupported,
       _ => throw const FormatException('Unsupported recorded action.'),
     };
@@ -249,6 +315,8 @@ class RecordedStep {
         json['secret'] is! bool ||
         (json['input'] != null && json['input'] is! String) ||
         (json['text'] != null && json['text'] is! String) ||
+        (json['expectation'] != null &&
+            json['expectation'] is! Map<String, dynamic>) ||
         (json['scrollView'] != null &&
             json['scrollView'] is! Map<String, dynamic>)) {
       throw const FormatException('Invalid recorded step.');
@@ -277,6 +345,11 @@ class RecordedStep {
           ? null
           : RecorderTarget.fromJson(json['scrollView'] as Map<String, dynamic>),
       scrollDirection: directions.isEmpty ? null : directions.single,
+      expectation: json['expectation'] == null
+          ? null
+          : ExpectationSpec.fromJson(
+              json['expectation'] as Map<String, dynamic>,
+            ),
     );
   }
 }

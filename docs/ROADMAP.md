@@ -17,16 +17,16 @@ complete and require approval before work begins.
 ## Completed milestones
 
 - [x] **Initial integrated technical proof:** real DevTools connection, permission-
-  bound DTD export, generated Patrol tests, screenshot capture, and real Patrol
-  web execution. See the [proof report](INTEGRATED_PROOF_RESULTS.md).
+      bound DTD export, generated Patrol tests, screenshot capture, and real Patrol
+      web execution. See the [proof report](INTEGRATED_PROOF_RESULTS.md).
 - [x] **Automatic-observation follow-up:** bounded tap/text/scroll/long-press
-  observation, selector resolution, protocol/schema evolution, and validation.
-  See [implementation results](IMPLEMENTATION_HISTORY.md#automatic-implementation-results)
-  and [protocol-5 follow-up](IMPLEMENTATION_HISTORY.md#protocol-5-interaction-and-async-follow-up).
+      observation, selector resolution, protocol/schema evolution, and validation.
+      See [implementation results](IMPLEMENTATION_HISTORY.md#automatic-implementation-results)
+      and [protocol-5 follow-up](IMPLEMENTATION_HISTORY.md#protocol-5-interaction-and-async-follow-up).
 - [x] **YAML and stable-capture follow-ups:** autosaved YAML sources, a separate
-  generator, user-owned input providers and test wrappers, and stable screenshot
-  paths. See [YAML workflow](IMPLEMENTATION_HISTORY.md#yaml-source-and-generation-workflow)
-  and [stable captures](IMPLEMENTATION_HISTORY.md#stable-captures-and-complex-ui).
+      generator, user-owned input providers and test wrappers, and stable screenshot
+      paths. See [YAML workflow](IMPLEMENTATION_HISTORY.md#yaml-source-and-generation-workflow)
+      and [stable captures](IMPLEMENTATION_HISTORY.md#stable-captures-and-complex-ui).
 
 ## Planned milestones
 
@@ -35,47 +35,52 @@ scope before starting implementation.
 
 ### M2 — YAML flow expressiveness, cases, and data
 
-- [ ] Design and implement explicit `expect` steps in the YAML schema and
-  generated Patrol Dart. Define supported expectation forms, validation,
-  bounded waiting, and behavior for incomplete or unsupported expectations.
+- [x] Design and implement explicit `expect` steps in the YAML schema and
+      generated Patrol Dart. Define supported expectation forms, validation,
+      bounded waiting, and behavior for incomplete or unsupported expectations.
+- [x] Add a DevTools one-shot widget picker: consume the selection tap, inspect
+      the resolved selector, configure an expectation, and persist only on confirmation.
 - [ ] Define what an `asset` step represents, how assets are referenced and
-  stored, and how the generator validates and handles them. Keep paths bounded
-  to the configured journey/project roots; do not allow arbitrary file access.
+      stored, and how the generator validates and handles them. Keep paths bounded
+      to the configured journey/project roots; do not allow arbitrary file access.
 - [ ] Support manually authored `expect` and `asset` steps in YAML and ensure
-  parsing, validation, preview/generation, and error messages handle them
-  consistently.
+      parsing, validation, preview/generation, and error messages handle them
+      consistently.
 - [ ] Add schema and generator tests for valid, invalid, missing, and unsupported
-  expectation/asset inputs.
+      expectation/asset inputs.
 - [ ] Expand the journey model for stable IDs, multiple cases, groups, typed
-  input data, reusable profiles/setup, and selector inspection/overrides.
+      input data, reusable profiles/setup, and selector inspection/overrides.
 
 ### M3 — Timeline and editing controls
 
 - [ ] Complete the live timeline and reliable Start/Pause/Resume/Stop/Discard
-  lifecycle.
+      lifecycle.
 - [ ] Add safe step editing, deletion, reordering, grouping, and manual
-  re-recording.
+      re-recording.
 
 ### M4 — Saved journeys and workflows
 
 - [ ] Add saved-journey browsing/reopening and selected file/case/suite commands.
 - [ ] Improve overwrite handling, screenshot providers, and supported export
-  portability.
+      portability.
 - [ ] Keep direct process invocation and runner-result ingestion proof-gated;
-  do not assume browser capabilities that are not verified.
+      do not assume browser capabilities that are not verified.
 
 ### M5 — Example and package readiness
 
 - [ ] Complete representative examples and tests for every advertised interaction.
 - [ ] Verify the supported platform/version matrix and package contents.
 - [ ] Complete documentation, licensing/provenance review, archive inspection,
-  and a pub.dev dry run. Publishing requires separate explicit approval.
+      and a pub.dev dry run. Publishing requires separate explicit approval.
 
 ## Open decisions and constraints
 
-- Clarify the user-visible contract and syntax for `expect` and `asset` before
-  implementing those YAML commands; the items above intentionally do not assume
-  an asset type or assertion language.
+- Schema 4 defines `expect` as bounded `exists`, `absent`, `visible`, exact `text`,
+  or `count` checks. The DevTools picker authors these steps without activating
+  the selected control. See the [expectation guide](../README.md#add-an-expectation).
+- The `asset` contract, multi-case/group model, typed fixture data, reusable
+  setup, and selector overrides remain open M2 work. The internal asset draft
+  is not yet a supported YAML or generation feature.
 - Patrol remains the execution foundation. Generated actions must use stable,
   validated targets; unresolved or ambiguous actions must not become
   success-shaped test code.

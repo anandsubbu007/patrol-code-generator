@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:patrol_recorder/model.dart';
 
 import 'src/backend.dart';
+import 'src/expectation_dialog.dart';
 import 'src/recording_setup.dart';
 import 'src/recording_writer.dart';
 import 'src/screenshot_name_dialog.dart';
@@ -90,6 +91,53 @@ class _RecorderPanelState extends State<RecorderPanel> {
     } on StateError catch (error) {
       if (mounted) setState(() => _saveError = error.message);
     }
+    if (mounted &&
+        epoch == _epoch &&
+        !_dialogOpen &&
+        snapshot['selecting'] == true &&
+        snapshot['selection'] is Map &&
+        (snapshot['selection'] as Map)['selector'] != null) {
+      unawaited(_perform(_configureExpectation));
+    }
+  }
+
+  Future<void> _selectExpectation() async {
+    final snapshot = await widget.backend.command('selectTarget');
+    if (mounted) setState(() => _snapshot = snapshot);
+  }
+
+  Future<void> _cancelSelection() async {
+    final snapshot = await widget.backend.command('cancelSelection');
+    if (mounted) setState(() => _snapshot = snapshot);
+  }
+
+  Future<void> _configureExpectation() async {
+    final target = RecorderTarget.fromJson(
+      Map<String, dynamic>.from(_snapshot!['selection'] as Map),
+    );
+    setState(() => _dialogOpen = true);
+    final ExpectationSpec? expectation;
+    try {
+      expectation = await showDialog<ExpectationSpec>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => ExpectationDialog(target: target),
+      );
+    } finally {
+      if (mounted) setState(() => _dialogOpen = false);
+    }
+    if (!mounted) return;
+    if (expectation == null) {
+      await _cancelSelection();
+      return;
+    }
+    final snapshot = await widget.backend.command(
+      'confirmExpectation',
+      parameters: {'expectation': jsonEncode(expectation.toJson())},
+    );
+    if (!mounted) return;
+    setState(() => _snapshot = snapshot);
+    await _persist();
   }
 
   Future<void> _persist() async {
@@ -305,11 +353,33 @@ class _RecorderPanelState extends State<RecorderPanel> {
                   child: const Text('Stop recording'),
                 ),
                 OutlinedButton(
-                  onPressed: !_busy && _connected
+                  onPressed:
+                      !_busy && _connected && _snapshot?['selecting'] != true
                       ? () => _perform(_capture)
                       : null,
                   child: const Text('Capture visible screen'),
                 ),
+                OutlinedButton.icon(
+                  onPressed:
+                      !_busy &&
+                          _connected &&
+                          writer != null &&
+                          state == 'recording' &&
+                          _snapshot?['selecting'] != true &&
+                          (_snapshot?['capabilities'] as List? ?? []).contains(
+                            'expectationPicker',
+                          )
+                      ? () => _perform(_selectExpectation)
+                      : null,
+                  icon: const Icon(Icons.ads_click),
+                  label: const Text('Add expectation'),
+                ),
+                if (_snapshot?['selecting'] == true)
+                  TextButton.icon(
+                    onPressed: _busy ? null : () => _perform(_cancelSelection),
+                    icon: const Icon(Icons.close),
+                    label: const Text('Cancel selection'),
+                  ),
                 if (_saveError != null)
                   OutlinedButton(
                     onPressed: _busy ? null : () => _perform(_persist),
@@ -318,6 +388,13 @@ class _RecorderPanelState extends State<RecorderPanel> {
               ],
             ),
           ),
+          if ((_snapshot?['selection'] as Map?)?['issue'] != null)
+            Text(
+              (_snapshot!['selection'] as Map)['issue'] as String,
+              style: const TextStyle(color: Colors.red),
+            ),
+          if (_snapshot?['selecting'] == true)
+            const Text('Select a widget in the app.'),
           if ((_busy && !_dialogOpen) || _saving)
             const LinearProgressIndicator(),
           if (writer != null)
@@ -421,6 +498,7 @@ class _RecorderPanelState extends State<RecorderPanel> {
                     '${step.target.toJson()}'
                         '${step.text == null ? '' : '\nInline link: ${step.text}'}'
                         '${step.scrollView == null ? '' : '\nScroll ${step.scrollDirection!.name} in ${step.scrollView!.toJson()}'}'
+                        '${step.expectation == null ? '' : '\nExpect: ${step.expectation!.toJson()}'}'
                         '${step.input == null ? '' : '\nInput: {{${step.input}}}${step.secret ? ' (secret)' : ''}'}',
               ),
             ),

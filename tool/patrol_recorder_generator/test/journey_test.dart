@@ -53,6 +53,187 @@ RecordedJourney recording({
 
 void main() {
   test(
+    'generated expectations compile and execute with Flutter and Patrol',
+    () async {
+      final project = Directory('../../example').absolute;
+      final temporary = await Directory('${project.path}/.dart_tool')
+          .createTemp('expectations_probe_');
+      addTearDown(() => temporary.delete(recursive: true));
+      final config = ExportConfig(journeyId: 'checks');
+      final generated = generateJourney(
+        steps: [
+          RecordedStep(
+            id: 'ready',
+            action: RecordedAction.expect,
+            target: RecorderTarget(key: 'status'),
+            expectation: ExpectationSpec(kind: RecordedExpectation.exists),
+          ),
+        ],
+        app: RecorderAppConfig(
+          appImport: 'package:patrol_recorder_example/app.dart',
+          appBuilder: 'createApp',
+        ),
+        config: config,
+      );
+      await File('${temporary.path}/checks_inputs.g.dart')
+          .writeAsString(generated.contract);
+      final probe = File('${temporary.path}/expectations_test.dart');
+      await probe.writeAsString(
+        generated.steps +
+            r'''
+void main() {
+  testWidgets('bounded generated expectations', (tester) async {
+    var ready = false;
+    late StateSetter update;
+    await tester.pumpWidget(Directionality(textDirection: TextDirection.ltr,
+      child: StatefulBuilder(builder: (context, setState) {
+        update = setState;
+        return Column(children: [
+          Text(ready ? 'Ready' : 'Loading', key: const ValueKey('status')),
+          const Text('Repeated'), const Text('Repeated'),
+          const Offstage(child: Text('Hidden', key: ValueKey('hidden'))),
+        ]);
+      })));
+    final status = find.byKey(const ValueKey('status'));
+    Future<void>.delayed(const Duration(milliseconds: 100), () => update(() => ready = true));
+    await _recorderExpect(tester, status, 'text', 'Ready', const Duration(milliseconds: 300), 'delayed_text');
+    await _recorderExpect(tester, status, 'exists', null, const Duration(milliseconds: 100), 'exists');
+    await _recorderExpect(tester, status, 'visible', null, const Duration(milliseconds: 100), 'visible');
+    await _recorderExpect(tester, find.text('Missing'), 'absent', null, const Duration(milliseconds: 100), 'absent');
+    await _recorderExpect(tester, find.text('Repeated'), 'count', 2, const Duration(milliseconds: 100), 'count');
+    await _recorderExpect(tester, find.text('Missing'), 'count', 0, const Duration(milliseconds: 100), 'zero');
+    for (final scenario in <(Finder, String, Object?)>[
+      (find.text('Repeated'), 'exists', null),
+      (find.byKey(const ValueKey('hidden'), skipOffstage: false), 'visible', null),
+      (status, 'text', 'Wrong'), (status, 'absent', null),
+    ]) {
+      await expectLater(() => _recorderExpect(tester, scenario.$1, scenario.$2, scenario.$3,
+        const Duration(milliseconds: 100), 'failed_step'),
+        throwsA(isA<TestFailure>().having((error) => error.message, 'step context', contains('failed_step'))));
+    }
+  });
+}
+''',
+      );
+      final flutterRoot = Platform.environment['FLUTTER_ROOT'];
+      final result = await Process.run(
+        flutterRoot == null ? 'flutter' : '$flutterRoot/bin/flutter',
+        ['test', probe.path, '--reporter', 'expanded'],
+        workingDirectory: project.path,
+      );
+      expect(result.exitCode, 0, reason: '${result.stdout}\n${result.stderr}');
+    },
+  );
+
+  test('all expectation forms roundtrip and generate bounded assertions', () {
+    for (final kind in RecordedExpectation.values) {
+      final step = RecordedStep(
+        id: 'expected_result',
+        action: RecordedAction.expect,
+        source: ObservationSource.authored,
+        target: RecorderTarget(key: 'result'),
+        expectation: ExpectationSpec(
+          kind: kind,
+          value: switch (kind) {
+            RecordedExpectation.text => r'Ready "$value"',
+            RecordedExpectation.count => 0,
+            _ => null,
+          },
+          timeoutMs: 250,
+        ),
+      );
+      final flow = RecordedJourney(
+        id: 'checks',
+        name: 'Checks',
+        caseId: 'ready',
+        profile: 'demo',
+        state: 'stopped',
+        steps: [step],
+      );
+      final parsed = RecordedJourney.fromYaml(flow.toYaml());
+      expect(
+        parsed.steps.single.expectation!.toJson(),
+        step.expectation!.toJson(),
+      );
+      final output = parsed.generate(ExportConfig(), app: testApp);
+      expect(output.steps, contains('_recorderExpect'));
+      expect(output.steps, contains('milliseconds: 250'));
+      expect(output.steps, contains('pumped >= timeout'));
+      expect(output.steps, isNot(contains('_recorderEnabled')));
+      expect(output.steps, isNot(contains('waitUntilVisible')));
+      expect(output.steps, contains('Matching widgets:'));
+      expect(
+        () => RecordedJourney.fromYaml(
+          flow.toYaml().replaceFirst('schema_version: 4', 'schema_version: 3'),
+        ),
+        throwsFormatException,
+      );
+    }
+  });
+
+  test(
+    'invalid missing unsupported and misplaced expectations are rejected',
+    () {
+      for (final raw in <Map<String, dynamic>>[
+        {},
+        {'kind': 'unsupported'},
+        {'kind': 'text'},
+        {'kind': 'text', 'value': ''},
+        {'kind': 'count', 'value': -1},
+        {'kind': 'count', 'value': '2'},
+        {'kind': 'visible', 'value': true},
+        {'kind': 'exists', 'timeout_ms': 99},
+        {'kind': 'exists', 'timeout_ms': 120001},
+        {'kind': 'exists', 'timeout_ms': '1000'},
+        {'kind': 'visible', 'unknown': true},
+      ]) {
+        expect(() => ExpectationSpec.fromJson(raw), throwsFormatException);
+      }
+      final raw = RecordedStep(
+        id: 'check',
+        action: RecordedAction.expect,
+        target: RecorderTarget(key: 'result'),
+        expectation: ExpectationSpec(kind: RecordedExpectation.exists),
+      ).toJson();
+      expect(
+        () => RecordedStep.fromJson({...raw, 'expectation': null}),
+        throwsFormatException,
+      );
+      expect(
+        () => RecordedStep.fromJson({...raw, 'action': 'tap'}),
+        throwsFormatException,
+      );
+      expect(
+        () => RecordedStep.fromJson({
+          ...raw,
+          'target': RecorderTarget(issue: 'Missing').toJson(),
+        }),
+        throwsFormatException,
+      );
+      final flow = RecordedJourney(
+        id: 'checks',
+        name: 'Checks',
+        caseId: 'ready',
+        profile: 'demo',
+        state: 'stopped',
+        steps: [RecordedStep.fromJson(raw)],
+      );
+      expect(
+        () => RecordedJourney.fromYaml(
+          flow.toYaml().replaceFirst('kind: "exists"', 'kind: "unknown"'),
+        ),
+        throwsFormatException,
+      );
+      expect(
+        () => RecordedJourney.fromYaml(
+          flow.toYaml().replaceFirst('expectation:', 'unsupported:'),
+        ),
+        throwsFormatException,
+      );
+    },
+  );
+
+  test(
     'new interactions roundtrip and emit bounded native Patrol/Flutter APIs',
     () {
       final flow = RecordedJourney(
@@ -125,7 +306,10 @@ void main() {
     () {
       final current = recording().toYaml();
       final legacy = current
-          .replaceFirst('schema_version: 3', 'schema_version: 1')
+          .replaceFirst(
+            'schema_version: $journeySchemaVersion',
+            'schema_version: 1',
+          )
           .replaceFirst('state: "stopped"', '''
 state: "stopped"
 session_id: "session_123"
@@ -204,8 +388,14 @@ app:
     final yaml = recording().toYaml();
     for (final bad in [
       yaml.replaceFirst('"{{user_name}}"', '"actual user data"'),
-      yaml.replaceFirst('schema_version: 3', 'schema_version: 4'),
-      yaml.replaceFirst('schema_version: 3', 'schema_version: 3.0'),
+      yaml.replaceFirst(
+        'schema_version: $journeySchemaVersion',
+        'schema_version: 99',
+      ),
+      yaml.replaceFirst(
+        'schema_version: $journeySchemaVersion',
+        'schema_version: 4.0',
+      ),
       yaml.replaceFirst('key: "user_name"', 'coordinates: "user_name"'),
       '$yaml'
           'unexpected: true\n',

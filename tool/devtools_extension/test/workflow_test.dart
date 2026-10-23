@@ -7,6 +7,7 @@ import 'package:patrol_recorder/model.dart';
 import 'package:patrol_recorder_generator/generator.dart';
 import 'package:patrol_recorder_devtools/recorder_panel.dart';
 import 'package:patrol_recorder_devtools/src/backend.dart';
+import 'package:patrol_recorder_devtools/src/expectation_dialog.dart';
 import 'package:patrol_recorder_devtools/src/recording_writer.dart';
 
 class TestFiles implements WorkspaceFiles {
@@ -42,16 +43,42 @@ recorder_config:
   String state = 'ready';
   int session = 0, captures = 0;
   List<RecordedStep> recorded = [];
+  bool selecting = false;
+  RecorderTarget? selection;
   @override
   Future<List<Uri>> projects() async => [root, root];
   @override
-  Future<Map<String, dynamic>> command(String command) async {
+  Future<Map<String, dynamic>> command(
+    String command, {
+    Map<String, String> parameters = const {},
+  }) async {
     if (command == 'start') {
       state = 'recording';
       session++;
       recorded = [];
     }
     if (command == 'stop') state = 'stopped';
+    if (command == 'selectTarget') {
+      selecting = true;
+      selection = null;
+    }
+    if (command == 'confirmExpectation') {
+      recorded.add(
+        RecordedStep(
+          id: 'step_${(recorded.length + 1).toString().padLeft(4, '0')}',
+          action: RecordedAction.expect,
+          target: selection!,
+          source: ObservationSource.authored,
+          expectation: ExpectationSpec.fromJson(
+            jsonDecode(parameters['expectation']!) as Map<String, dynamic>,
+          ),
+        ),
+      );
+    }
+    if (command == 'cancelSelection' || command == 'confirmExpectation') {
+      selecting = false;
+      selection = null;
+    }
     final snapshot = <String, dynamic>{
       'protocolVersion': recorderProtocolVersion,
       'sessionId': 'session_$session',
@@ -63,6 +90,9 @@ recorder_config:
         appBuilder: 'createApp',
       ).toJson(),
       'error': null,
+      'capabilities': ['expectationPicker'],
+      'selecting': selecting,
+      'selection': selection?.toJson(),
     };
     if (command == 'capture') {
       snapshot['screenshot'] = {
@@ -97,6 +127,94 @@ Future<void> start(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('expectation form validates values on a narrow viewport', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    ExpectationSpec? saved;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () async {
+                saved = await showDialog<ExpectationSpec>(
+                  context: context,
+                  builder: (_) =>
+                      ExpectationDialog(target: RecorderTarget(key: 'status')),
+                );
+              },
+              child: const Text('Open'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(DropdownButtonFormField<RecordedExpectation>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Match count').last);
+    await tester.pumpAndSettle();
+    final count = find.widgetWithText(TextFormField, 'Expected count');
+    final timeout = find.widgetWithText(TextFormField, 'Timeout (ms)');
+    await tester.enterText(count, '-1');
+    await tester.tap(find.text('Save expectation'));
+    await tester.pumpAndSettle();
+    expect(saved, isNull);
+    expect(find.text('Enter a nonnegative integer.'), findsOneWidget);
+    await tester.enterText(count, '2');
+    await tester.enterText(timeout, '99');
+    await tester.tap(find.text('Save expectation'));
+    await tester.pumpAndSettle();
+    expect(find.text('Enter 100-120000 milliseconds.'), findsOneWidget);
+    await tester.enterText(timeout, '250');
+    await tester.tap(find.text('Save expectation'));
+    await tester.pumpAndSettle();
+    expect(saved!.kind, RecordedExpectation.count);
+    expect(saved!.value, 2);
+    expect(saved!.timeoutMs, 250);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'picked expectations are confirmed into YAML and cancellation adds nothing',
+    (tester) async {
+      final backend = TestBackend();
+      await mount(tester, backend);
+      await start(tester);
+      await tester.tap(find.text('Add expectation'));
+      await tester.pumpAndSettle();
+      expect(backend.selecting, true);
+      expect(backend.recorded, isEmpty);
+      backend.selection = RecorderTarget(key: 'confirmation');
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pumpAndSettle();
+      expect(find.text('Save expectation'), findsOneWidget);
+      await tester.tap(find.text('Save expectation'));
+      await tester.pumpAndSettle();
+      final yaml = (await backend.files.read(
+        backend.root.resolve('patrol_recorder/ui_flow.yml'),
+      ))!;
+      final saved = RecordedJourney.fromYaml(yaml);
+      expect(saved.steps.single.action, RecordedAction.expect);
+      expect(saved.steps.single.target.key, 'confirmation');
+      expect(saved.steps.single.expectation!.kind, RecordedExpectation.visible);
+      expect(backend.selecting, false);
+      await tester.tap(find.text('Add expectation'));
+      await tester.pumpAndSettle();
+      backend.selection = RecorderTarget(key: 'other');
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(backend.recorded, hasLength(1));
+      expect(backend.selecting, false);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
   testWidgets(
     'screenshot suggestions are unique and can be named for a specific state',
     (tester) async {

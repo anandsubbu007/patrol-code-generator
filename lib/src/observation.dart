@@ -280,11 +280,13 @@ class _RecorderObserver {
     return context is Element ? context : null;
   }
 
-  void start() {
+  void start({bool resume = false}) {
     stop();
     _active = true;
-    _inputs.clear();
-    _usedNames.clear();
+    if (!resume) {
+      _inputs.clear();
+      _usedNames.clear();
+    }
     _semantics = WidgetsBinding.instance.ensureSemantics();
     WidgetsBinding.instance.pointerRouter.addGlobalRoute(_pointer);
     WidgetsBinding.instance.addSemanticsActionListener(_semanticsAction);
