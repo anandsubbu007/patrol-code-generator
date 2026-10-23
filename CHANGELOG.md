@@ -1,3 +1,10 @@
+## Unreleased
+
+- Add coordinated version-tag releases, optional release-branch preparation,
+  pub.dev OIDC setup guidance, and release-helper regression checks.
+- Wait for pub.dev's dependency-resolution index before proceeding to the
+  generator after recorder publication.
+
 ## 0.0.4
 
 - Correct publication and installation status, clarify hosted workflow blockers,

@@ -6,8 +6,8 @@ providers and test wrappers. It does not record interactions or execute tests.
 
 ## Install
 
-For the 0.4 release, publish `patrol_recorder` before this package. After both
-are available on pub.dev, add them with compatible 0.0.x ranges:
+For the 0.0.4 release, publish `patrol_recorder` before this package. After both
+are available on pub.dev, add them with compatible version ranges:
 
 ```sh
 flutter pub add --dev 'patrol_recorder:>=0.0.4 <0.1.0' 'patrol_recorder_generator:>=0.0.4 <0.1.0' 'patrol:4.10.0'

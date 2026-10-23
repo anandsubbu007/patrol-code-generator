@@ -1,3 +1,9 @@
+## Unreleased
+
+- Add coordinated tag/branch release automation and hosted publication checks.
+- Keep generated-code execution tests runnable from release staging with an
+  explicit checkout example-project path.
+
 ## 0.0.4
 
 - Prepare the generator for the coordinated 0.0.4 release and document the

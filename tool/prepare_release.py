@@ -26,6 +26,23 @@ DOCS = (
 VERSION_RE = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 
 
+def update_documentation_version(text: str, current: str, requested: str) -> str:
+    parts = re.split(
+        r"(<!-- publication-history:start -->.*?<!-- publication-history:end -->)",
+        text,
+        flags=re.S,
+    )
+    for index in range(0, len(parts), 2):
+        for old, new in (
+            (upper_bound(version_tuple(current)), upper_bound(version_tuple(requested))),
+            (current, requested),
+        ):
+            parts[index] = re.sub(
+                rf"(?<![\d.]){re.escape(old)}(?!\d|\.\d)", new, parts[index]
+            )
+    return "".join(parts)
+
+
 def version_tuple(value: str) -> tuple[int, int, int]:
     match = VERSION_RE.fullmatch(value)
     if match is None:
@@ -76,9 +93,18 @@ def main() -> int:
         action="store_true",
         help="Write the version, dependency range, and changelog placeholders",
     )
+    parser.add_argument(
+        "--from-ref",
+        action="store_true",
+        help="Read vMAJOR.MINOR.PATCH, allow the current version, and prepare CI release notes",
+    )
     args = parser.parse_args()
 
     try:
+        if args.from_ref:
+            if not args.version.startswith("v"):
+                raise ValueError("Release refs must be named vMAJOR.MINOR.PATCH.")
+            args.version = args.version[1:]
         requested = version_tuple(args.version)
         recorder_text, recorder_current = read_version(RECORDER_PUBSPEC)
         generator_text, generator_current = read_version(GENERATOR_PUBSPEC)
@@ -88,7 +114,7 @@ def main() -> int:
             raise ValueError(
                 "Recorder and generator versions differ; reconcile them before preparing a release."
             )
-        if requested <= current:
+        if requested < current or (requested == current and not args.from_ref):
             raise ValueError(
                 f"{args.version} must be greater than the current package version {recorder_current}."
             )
@@ -119,20 +145,41 @@ def main() -> int:
 
         for path in DOCS:
             text = path.read_text()
-            if old_range in text:
-                changes[path] = text.replace(old_range, new_range)
+            if args.from_ref:
+                text = update_documentation_version(text, recorder_current, args.version)
+            else:
+                text = text.replace(old_range, new_range)
+            if text != path.read_text():
+                changes[path] = text
+
+        if args.from_ref:
+            contributor = ROOT / "CONTRIBUTING.md"
+            text = contributor.read_text()
+            changes[contributor] = update_documentation_version(text, recorder_current, args.version)
 
         for path in CHANGELOGS:
             text = path.read_text()
+            if requested == current and args.from_ref:
+                continue
             if re.search(rf"(?m)^## {re.escape(args.version)}(?:\s|$)", text):
                 raise ValueError(
                     f"{args.version} already has a changelog heading in {path.relative_to(ROOT)}."
                 )
-            changes[path] = (
-                f"## {args.version} (release candidate)\n\n"
-                "- TODO: Describe the changes included in this release.\n\n"
-                + text
-            )
+            if args.from_ref:
+                if text.startswith("## Unreleased\n"):
+                    changes[path] = text.replace("## Unreleased", f"## {args.version}", 1)
+                else:
+                    changes[path] = (
+                        f"## {args.version}\n\n"
+                        "- Coordinated recorder and generator release. See the repository "
+                        "commit history for changes.\n\n" + text
+                    )
+            else:
+                changes[path] = (
+                    f"## {args.version} (release candidate)\n\n"
+                    "- TODO: Describe the changes included in this release.\n\n"
+                    + text
+                )
     except (OSError, ValueError) as error:
         print(f"Error: {error}", file=sys.stderr)
         return 2
@@ -142,6 +189,16 @@ def main() -> int:
         print(f"{action}: {path.relative_to(ROOT)}")
         if args.apply:
             write_atomically(path, text)
+
+    if args.from_ref:
+        print(
+            f"\nPrepared coordinated version {args.version}. "
+            "Review release notes and run validation before publishing. "
+            "No commit, tag, or upload was performed by this helper."
+        )
+        if not args.apply:
+            print("Preview only: no files changed.")
+        return 0
 
     print(
         f"\nRelease TODO for {args.version}\n"

@@ -37,6 +37,12 @@ cd ..
 
 ## Prepare a coordinated package version
 
+For automatic releases from a pushed `vMAJOR.MINOR.PATCH` tag or branch, use
+the [automated release guide](doc/PUBLISHING.md#automated-releases-from-a-version-tag-or-branch).
+It explains the required pub.dev OIDC setup, the optional branch-to-tag token,
+automatic version synchronization, validation, and partial-release recovery.
+The commands below remain available for manual preparation and publication.
+
 The release helper updates both package versions, adjusts the generator's
 recorder constraint and matching documentation ranges, and adds changelog
 placeholders. It does not publish or commit. Run a preview first:
@@ -65,7 +71,8 @@ In brief, the version-bump prompt defaults to **No**. If you enter a different
 version, the script updates both manifests and the compatible recorder range,
 adds changelog TODOs, then exits without publishing; complete the release notes,
 run checks, commit the reviewed changes, and rerun it. With no bump, it requires
-a clean worktree, checks both package versions are not already on pub.dev, runs
+a clean worktree, checks hosted availability and skips an already-hosted
+recorder, runs
 recorder analysis/tests and an archive dry-run, and requests a typed confirmation
 before each upload. It resolves and validates the generator from a temporary
 copy without the local override, and only proceeds after the recorder version

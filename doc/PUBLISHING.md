@@ -1,27 +1,136 @@
 # Publishing Patrol Recorder and its generator
 
-## 0.0.4 release plan (checked 2026-10-23)
+## 0.0.4 release plan
 
-- The last confirmed hosted recorder release is `patrol_recorder` **0.0.3**.
-  Its published contents are immutable and its metadata declares six Flutter
-  targets; only the Web end-to-end workflow is verified.
+<!-- publication-history:start -->
+Publication status checked on 2026-10-23: recorder **0.0.4** is present in both
+the pub.dev version API and dependency-resolution index. Generator **0.0.4**
+is not yet hosted. Do not re-upload the recorder; finish the generator release.
+This is a point-in-time record, not an assertion about future releases.
+<!-- publication-history:end -->
+
 - Version 0.0.4 omits a platform allowlist rather than declaring Web-only or
   claiming every Flutter target. The package uses Flutter APIs and is not a
   standalone Dart package; end-to-end behavior beyond Web still needs testing.
 - This checkout prepares `patrol_recorder` **0.0.4** and
   `patrol_recorder_generator` **0.0.4**. Publish the recorder first, then the
-  generator. Do not describe either 0.4 package as hosted until verified on
+  generator. Do not describe either package as hosted until verified on
   pub.dev.
 - The generator dependency uses `patrol_recorder: '>=0.0.4 <0.1.0'`. This
-  admits compatible 0.0.x patch releases but excludes 0.0.3 and 0.1.0.
+  admits compatible patch releases but excludes 0.0.3 and 0.1.0.
 - Consumer instructions use the same range for both Patrol Recorder packages.
   Patrol 4.10.0 and Patrol CLI 4.8.0 remain pinned to the versions used by the
   validated example.
 - The source tree may be ahead of the hosted release. Publishing makes the
   package archives permanent; review the exact staged contents first.
 
-This checklist prepares two packages. It does not authorize an automated upload.
 Publishing makes an archive public; treat the released version as permanent.
+The interactive script requires confirmation; after the one-time setup below,
+pushing a version tag authorizes automatic publication.
+
+## Automated releases from a version tag or branch
+
+The [release workflow](../.github/workflows/release.yml) accepts only stable
+`vMAJOR.MINOR.PATCH` refs, for example `v0.0.5`. GitHub's trigger glob selects
+candidate refs; the Python helper then validates the exact semantic version
+(no leading zeroes, prerelease suffix, or extra path components).
+
+### One-time setup
+
+1. Publish each package once manually using the intended pub.dev account.
+   In particular, finish the initial generator publication before attempting
+   OIDC automation: its package Admin page does not exist until then.
+2. On **each** package's pub.dev Admin page, enable automated publishing from
+   GitHub Actions. Set repository to `anandsubbu007/patrol-code-generator` and
+   tag pattern to `v{{version}}` for both packages. They intentionally share a
+   tag because this repository releases them together. No long-lived pub.dev
+   credential is stored in GitHub.
+3. To publish from a **branch**, also create a fine-grained GitHub token with
+   access only to this repository and **Contents: read/write**, then save it as
+   repository Actions secret `RELEASE_TAG_TOKEN`. Organization policy may
+   require approving the token. It is used only to push the prepared branch
+   commit and tag. GitHub's default `GITHUB_TOKEN` cannot trigger another
+   push-triggered workflow, so it cannot replace this token. A direct tag push
+   does not require this secret.
+4. Restrict who can push version branches and tags using repository rules.
+   Anyone allowed to push one can initiate a release. The workflow has no
+   interactive upload confirmation; the push is the approval. Do not enable
+   pub.dev's optional required deployment environment without also adding the
+   same environment to the workflow's publishing job.
+
+### Releasing
+
+After reviewing the code and release notes, choose **one** route:
+
+```sh
+# Tag route: push an immutable release tag from the reviewed source.
+git tag v0.0.5
+git push origin v0.0.5
+```
+
+```sh
+# Branch route: the workflow prepares a commit and creates the matching tag.
+git switch -c v0.0.5
+git push -u origin v0.0.5
+```
+
+Merely creating a local ref does not start GitHub Actions; push it to GitHub.
+Do not create both refs yourself: the branch route fails if the tag already
+exists rather than moving it. Use a new version for a new release.
+
+The branch job writes a version-preparation commit back to that release
+branch and atomically pushes the matching tag. Its generated
+`chore: prepare v...` commit does not repeat branch preparation. The new tag
+starts the publishing job, authenticated with pub.dev using short-lived OIDC
+credentials (`id-token: write`).
+
+For either route, the tag job:
+
+1. Extracts the version from the ref and updates both publishable manifests,
+   the generator's compatible recorder range, current documentation version
+   references/ranges, and both changelogs. It accepts the current version or a
+   higher version, never a downgrade. An existing `## Unreleased` section at
+   the top of each changelog is promoted to the target version; otherwise a
+   factual coordinated-release entry is inserted. For useful release notes,
+   maintain those Unreleased sections before pushing. Historical changelog
+   entries and marked publication-history snapshots are preserved. The
+   unpublished example and extension keep their independent app versions;
+   local-path lockfiles are refreshed by dependency resolution, not edited
+   by search-and-replace.
+2. Runs the Python release-helper tests, Dart formatting, analysis and tests
+   for all components, and builds/validates the bundled DevTools extension.
+3. Saves a `release-source-changes-vX.Y.Z` workflow artifact containing the
+   version/build patch, then makes a **runner-local** commit for clean Pub
+   archive validation. A direct tag release never moves the tag or writes
+   changes back to a branch; download/review the patch if you want to retain
+   those generated changes in your development branch.
+4. Dry-runs and publishes the recorder first. It waits up to ten minutes for
+   both its version API and package-resolution index to contain that version.
+5. Stages the generator outside the checkout without local overrides,
+   resolves the hosted recorder, analyzes/tests the staged package, then
+   dry-runs and publishes it. It verifies hosted availability afterward.
+   The two generated-code execution tests use the checked-out example through
+   `PATROL_RECORDER_TEST_EXAMPLE`; its dependencies must be set up first. This
+   fixture is not a hosted consumer app, while the staged generator's own
+   dependency resolution uses the hosted recorder without overrides.
+
+Uploads use `flutter pub publish --force` only after validation. Failures stop
+the job; the workflow never downgrades dependency constraints or substitutes
+local overrides. Already-hosted versions are skipped, so rerunning a failed
+tag job can finish a partial release without republishing immutable packages.
+Concurrency serializes repeated runs for the same ref and never cancels
+an upload mid-run. A completed upload is not rolled back if a later step fails.
+
+The updater can be previewed locally without uploading:
+
+```sh
+python3 tool/prepare_release.py v0.0.5 --from-ref
+python3 -m unittest discover -s tool/tests -v
+```
+
+These automation helpers do not prove the hosted recording/replay workflow.
+Complete the [post-upload consumer checklist](#after-both-uploads) before
+announcing a release.
 
 ## Package layout
 
@@ -200,20 +309,24 @@ GitHub release, or bypass the package owner's confirmations. Its flow is:
    you resume after a partial release or validate the generator after releasing
    the recorder. This clean-worktree gate prevents Pub's dirty-file archive
    warning and ensures the uploaded package is the reviewed commit.
-4. It runs recorder `flutter analyze lib test`, `flutter test`, and
-   `flutter pub publish --dry-run` from the repository root. Any failure stops
-   the process before an upload.
+4. It runs recorder `flutter analyze lib test` and `flutter test` from the
+   repository root, plus `flutter pub publish --dry-run` if the recorder is
+   not already hosted. Any failure stops the process before an upload.
 5. If the recorder version is not already hosted, it asks for a separate
    Yes/No and requires the exact text `patrol_recorder@VERSION` before invoking
    `flutter pub publish`. Declining or entering a different string stops
    without uploading. After an upload, it checks pub.dev until that exact
-   version is visible. If the check cannot confirm it, generator publication
-   stops.
+   version is visible in both the version API and package-resolution index,
+   allowing up to ten minutes for propagation. If the check cannot confirm it,
+   generator publication stops. Resuming an already-uploaded recorder also
+   waits for its package index before attempting generator resolution.
 6. It copies only the generator's release files into a temporary directory.
    The local `pubspec_overrides.yaml` is not copied. There it runs `flutter pub
    get` against the hosted recorder range, `flutter analyze`, `flutter test`,
    and the generator archive dry-run. Any failure stops before generator
    upload.
+   The example setup above is required for the generated-code execution tests;
+   the script passes its absolute path with `PATROL_RECORDER_TEST_EXAMPLE`.
 7. It asks for a separate confirmation and exact
    `patrol_recorder_generator@VERSION` text before invoking the generator
    `flutter pub publish` from that temporary directory. It checks that the
@@ -258,6 +371,7 @@ After recorder 0.0.4 is confirmed hosted:
 
 ```sh
 cd tool/patrol_recorder_generator
+export PATROL_RECORDER_TEST_EXAMPLE="$(cd ../../example && pwd)"
 release_dir="$(mktemp -d "${TMPDIR:-/tmp}/patrol-recorder-generator.XXXXXX")"
 cp -R bin lib test README.md CHANGELOG.md LICENSE pubspec.yaml \
   analysis_options.yaml .pubignore "$release_dir/"

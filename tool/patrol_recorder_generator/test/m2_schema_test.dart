@@ -113,7 +113,9 @@ void main() {
   test(
     'generated typed inputs and fixture helpers compile and execute',
     () async {
-      final directory = Directory('../../example').absolute;
+      final directory = Directory(
+        Platform.environment['PATROL_RECORDER_TEST_EXAMPLE'] ?? '../../example',
+      ).absolute;
       final temporary = await Directory('${directory.path}/.dart_tool')
           .createTemp('m2_probe_');
       addTearDown(() => temporary.delete(recursive: true));

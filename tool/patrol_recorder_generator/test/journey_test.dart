@@ -55,7 +55,9 @@ void main() {
   test(
     'generated expectations compile and execute with Flutter and Patrol',
     () async {
-      final project = Directory('../../example').absolute;
+      final project = Directory(
+        Platform.environment['PATROL_RECORDER_TEST_EXAMPLE'] ?? '../../example',
+      ).absolute;
       final temporary = await Directory('${project.path}/.dart_tool')
           .createTemp('expectations_probe_');
       addTearDown(() => temporary.delete(recursive: true));

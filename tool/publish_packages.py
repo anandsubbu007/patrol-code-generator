@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import json
+import os
 import re
 import shutil
 import subprocess
@@ -72,24 +74,54 @@ def hosted_version_exists(package: str, version: str) -> bool:
         raise RuntimeError(f"Could not check pub.dev for {package}: {error}") from error
 
 
+def hosted_version_is_resolvable(package: str, version: str) -> bool:
+    request = urllib.request.Request(
+        f"https://pub.dev/api/packages/{package}",
+        headers={
+            "User-Agent": "patrol-release-helper",
+            "Cache-Control": "no-cache",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=20) as response:
+            metadata = json.load(response)
+        versions = metadata["versions"]
+        if not isinstance(versions, list):
+            raise ValueError("Expected a versions list.")
+        return any(entry["version"] == version for entry in versions)
+    except urllib.error.HTTPError as error:
+        if error.code == 404:
+            return False
+        raise RuntimeError(f"Pub.dev package index check failed: HTTP {error.code}") from error
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        raise RuntimeError(f"Could not read pub.dev package index for {package}: {error}") from error
+
+
 def wait_until_hosted(package: str, version: str) -> bool:
-    for attempt in range(6):
-        if hosted_version_exists(package, version):
+    for attempt in range(61):
+        if hosted_version_exists(package, version) and hosted_version_is_resolvable(package, version):
             print(f"Confirmed on pub.dev: {package} {version}")
             return True
-        if attempt < 5:
-            print(f"Waiting for {package} {version} to appear on pub.dev...")
-            time.sleep(5)
+        if attempt < 60:
+            print(f"Waiting for {package} {version} in pub.dev's dependency-resolution index...")
+            time.sleep(10)
     while ask_yes_no(f"{package} {version} is not visible yet. Retry the pub.dev check?"):
-        if hosted_version_exists(package, version):
+        if hosted_version_exists(package, version) and hosted_version_is_resolvable(package, version):
             print(f"Confirmed on pub.dev: {package} {version}")
             return True
     return False
 
 
-def run(command: list[str], *, cwd: Path) -> bool:
+def run(command: list[str], *, cwd: Path, env: dict[str, str] | None = None) -> bool:
     print(f"\n$ {' '.join(command)}")
-    return subprocess.run(command, cwd=cwd, check=False).returncode == 0
+    return subprocess.run(command, cwd=cwd, env=env, check=False).returncode == 0
+
+
+def generator_test_environment() -> dict[str, str]:
+    return {
+        **os.environ,
+        "PATROL_RECORDER_TEST_EXAMPLE": str(ROOT / "example"),
+    }
 
 
 def changelog_is_ready(path: Path, version: str) -> bool:
@@ -205,11 +237,13 @@ def main() -> int:
                 "Choose a higher coordinated version."
             )
 
-        for command in (
+        recorder_commands = [
             ["flutter", "analyze", "lib", "test"],
             ["flutter", "test"],
-            ["flutter", "pub", "publish", "--dry-run"],
-        ):
+        ]
+        if not recorder_is_hosted:
+            recorder_commands.append(["flutter", "pub", "publish", "--dry-run"])
+        for command in recorder_commands:
             if not run(command, cwd=ROOT):
                 print(
                     "Recorder validation failed; no package was published.",
@@ -223,6 +257,9 @@ def main() -> int:
                     f"{RECORDER_NAME} {version} is already hosted; "
                     "skipping its upload and continuing with generator validation."
                 )
+                if not wait_until_hosted(RECORDER_NAME, version):
+                    print("Recorder index propagation is incomplete; generator stopped.", file=sys.stderr)
+                    return 1
             else:
                 if not confirmed_upload(RECORDER_NAME, version):
                     print("Recorder upload not authorized; nothing was published.")
@@ -253,7 +290,7 @@ def main() -> int:
                 ["flutter", "test"],
                 ["flutter", "pub", "publish", "--dry-run"],
             ):
-                if not run(command, cwd=staged):
+                if not run(command, cwd=staged, env=generator_test_environment()):
                     print(
                         "Staged generator validation failed; generator was not published.",
                         file=sys.stderr,

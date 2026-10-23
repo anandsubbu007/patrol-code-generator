@@ -16,8 +16,8 @@ DevTools Record -> patrol_recorder/<journey>.yml
 No recording calls are needed in application button/text-field callbacks.
 Recording setup stays in a test-only entrypoint, not application `lib/`.
 This is an **experimental project**, not a universal or production-certified
-recorder. `patrol_recorder` 0.0.3 is published; this checkout prepares recorder
-and generator 0.0.4 for the next release. The tested local environment was Flutter
+recorder. The recorder is published on pub.dev; this checkout targets recorder
+and generator 0.0.4. Check both package pages before installing. The tested local environment was Flutter
 3.47.7 / Dart 3.13.5, DevTools 2.60.0, Patrol 4.10.0, Patrol CLI 4.8.0, Node
 22.23.4, and Flutter web.
 
@@ -97,8 +97,8 @@ from private input values or created by a DevTools case editor.
 
 ## Install from pub.dev
 
-For the 0.4 release, publish the recorder first and the generator second.
-After both package pages list 0.4 or a later compatible 0.0.x version, add
+For the 0.0.4 release, publish the recorder first and the generator second.
+After both package pages list 0.0.4 or a later compatible version, add
 them with a range that accepts patch releases without allowing 0.1.0:
 
 ```sh
@@ -595,8 +595,8 @@ Avoid concurrent recording/generation/editing of the same journey.
 ## Use in your own app
 
 The following dependency setup is for after recorder and generator 0.0.4 are
-published. Until then, only recorder 0.0.3 is hosted, and the complete workflow
-cannot be installed from pub.dev.
+published. Check both package pages first; a hosted recorder alone does not
+make the complete workflow installable from pub.dev.
 
 ```yaml
 dev_dependencies:
