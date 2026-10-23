@@ -89,6 +89,132 @@ class GenerationSummary {
   final List<Map<String, Object?>> selectors;
 }
 
+class LocalRecordings {
+  LocalRecordings._(
+    this.root,
+    this.workspace,
+    this.pubspec,
+    this.defaults,
+    this.directory,
+  );
+
+  final Uri root;
+  final LocalWorkspaceFiles workspace;
+  final String pubspec;
+  final ExportConfig defaults;
+  final String directory;
+
+  static Future<LocalRecordings> open(
+    Directory project, {
+    String? recordingsDirectory,
+  }) async {
+    final root = Directory(await project.resolveSymbolicLinks()).uri;
+    final workspace = LocalWorkspaceFiles(root);
+    final source = await workspace.read(root.resolve('pubspec.yaml'));
+    if (source == null) {
+      throw StateError('No pubspec.yaml in the selected app project.');
+    }
+    final defaults = ExportConfig.fromPubspec(source);
+    final directory = validateRelativePath(
+      recordingsDirectory ?? defaults.recordingsDirectory,
+    );
+    await workspace.exists(root.resolve('$directory/.path_check'));
+    return LocalRecordings._(root, workspace, source, defaults, directory);
+  }
+
+  Future<List<Uri>> journeys() async {
+    final folder = Directory.fromUri(root.resolve('$directory/'));
+    if (!await folder.exists()) return [];
+    final paths = <Uri>[];
+    await for (final entity in folder.list(followLinks: false)) {
+      if ((entity is File || entity is Link) && entity.path.endsWith('.yml')) {
+        paths.add(entity.uri);
+      }
+    }
+    return paths..sort((a, b) => a.toString().compareTo(b.toString()));
+  }
+
+  /// Plans only named files, never whole directories or authored fixture assets.
+  Future<Map<Uri, List<int>>> resetPlan({
+    required bool screenshots,
+    required bool generatedCode,
+  }) async {
+    final paths = await journeys();
+    final candidates = paths.toSet();
+    for (final uri in paths) {
+      if (!screenshots && !generatedCode) continue;
+      final yaml = await workspace.read(uri);
+      if (yaml == null) {
+        throw StateError('Recording changed while planning reset: $uri');
+      }
+      final recording = RecordedJourney.fromYaml(yaml);
+      if (uri.pathSegments.last != '${recording.id}.yml') {
+        throw StateError('Journey filename must match ${recording.id}.yml.');
+      }
+      if (screenshots) {
+        candidates.addAll(
+          recording.screenshots.map((image) => root.resolve(image.path)),
+        );
+      }
+      if (generatedCode) {
+        for (final item in recording.effectiveCases) {
+          final config = ExportConfig(
+            outputDirectory: recording.cases.isEmpty
+                ? defaults.outputDirectory
+                : '${defaults.outputDirectory}/${recording.id}/cases',
+            journeyId: recording.cases.isEmpty ? recording.id : item.id,
+          );
+          candidates.addAll(
+            [
+              config.stepsPath,
+              config.contractPath,
+              config.inputsPath,
+              config.testPath,
+            ].map(root.resolve),
+          );
+        }
+      }
+    }
+    final plan = <Uri, List<int>>{};
+    for (final uri in candidates) {
+      if (await workspace.exists(uri)) {
+        final file = await workspace._file(uri);
+        if (await FileSystemEntity.type(file.path, followLinks: false) !=
+            FileSystemEntityType.file) {
+          throw FileSystemException('Reset expects a regular file.', file.path);
+        }
+        plan[uri] = await file.readAsBytes();
+      }
+    }
+    return plan;
+  }
+
+  Future<void> deletePlanned(Map<Uri, List<int>> plan) async {
+    // Check every file before deleting any; confirmation may have taken time.
+    for (final entry in plan.entries) {
+      final file = await workspace._file(entry.key);
+      final current = await file.readAsBytes();
+      if (current.length != entry.value.length ||
+          !Iterable<int>.generate(current.length)
+              .every((index) => current[index] == entry.value[index])) {
+        throw StateError('Reset cancelled: ${file.path} changed.');
+      }
+    }
+    var deleted = 0;
+    for (final uri in plan.keys) {
+      try {
+        await (await workspace._file(uri)).delete();
+        deleted++;
+      } on FileSystemException catch (error) {
+        throw FileSystemException(
+          'Reset stopped after $deleted files: ${error.message}',
+          error.path,
+        );
+      }
+    }
+  }
+}
+
 Future<RecorderAppConfig> resolveAppBootstrap(
   WorkspaceFiles workspace,
   Uri root,
@@ -168,16 +294,15 @@ Future<GenerationSummary> generateProject(
     }
     requireIdentifier(selectedCase, 'Case ID');
   }
-  final root = Directory(await project.resolveSymbolicLinks()).uri;
-  final workspace = LocalWorkspaceFiles(root);
-  final source = await workspace.read(root.resolve('pubspec.yaml'));
-  if (source == null) {
-    throw StateError('No pubspec.yaml in the selected app project.');
-  }
-  final defaults = ExportConfig.fromPubspec(source);
-  final recordings = validateRelativePath(
-    recordingsDirectory ?? defaults.recordingsDirectory,
+  final catalog = await LocalRecordings.open(
+    project,
+    recordingsDirectory: recordingsDirectory,
   );
+  final root = catalog.root;
+  final workspace = catalog.workspace;
+  final source = catalog.pubspec;
+  final defaults = catalog.defaults;
+  final recordings = catalog.directory;
   final directory = Directory.fromUri(root.resolve('$recordings/'));
   // Check the directory itself for symlinks before listing.
   await workspace.exists(root.resolve('$recordings/.path_check'));
@@ -192,12 +317,7 @@ Future<GenerationSummary> generateProject(
     ExportConfig(journeyId: journey);
     paths.add(directory.uri.resolve('$journey.yml'));
   } else {
-    await for (final entity in directory.list(followLinks: false)) {
-      if ((entity is File || entity is Link) && entity.path.endsWith('.yml')) {
-        paths.add(entity.uri);
-      }
-    }
-    paths.sort((a, b) => a.toString().compareTo(b.toString()));
+    paths.addAll(await catalog.journeys());
   }
   if (paths.isEmpty) throw StateError('No .yml journeys found in $recordings.');
   final originals = <Uri, String>{};

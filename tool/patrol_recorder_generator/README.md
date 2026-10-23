@@ -29,6 +29,7 @@ From the consuming app directory:
 
 ```sh
 dart run patrol_recorder_generator:generate
+dart run patrol_recorder_generator:generate --all
 dart run patrol_recorder_generator:generate --journey login
 dart run patrol_recorder_generator:generate --journey checkout --case happy --preview
 dart run patrol_recorder_generator:generate --journey checkout --inspect-selectors
@@ -40,7 +41,25 @@ The CLI validates the selected batch before writing: schema 1-5, stopped state,
 input references, selectors, app bootstrap, screenshot existence, and safe paths.
 `--recordings-directory` overrides YAML discovery for one invocation. Invalid
 sources and unsafe writes produce explicit failures and nonzero exit status.
-Without `--journey`, every `.yml` recording in the configured directory is
+In a terminal, omitting `--journey` opens a menu to select one journey, generate
+all, preview steps, inspect selectors, reset recordings, or see re-recording
+instructions. Failed validation returns to the menu so you can choose an
+unaffected journey. The menu also handles an empty or missing recordings folder.
+The CLI generates tests; it does not execute tests or start recording.
+
+Reset offers three scopes: YAML only; YAML and referenced screenshots; or both
+plus the journey's generated files **including user-owned inputs and tests**.
+It lists exact existing files and requires typing `DELETE`. No directories,
+fixture assets, unreferenced screenshots, or unrelated files are deleted.
+Malformed YAML must be repaired before a screenshot/code reset, or removed with
+YAML-only reset. Symlinked paths are refused. Stop recording before resetting.
+Record a new journey in DevTools afterward; reset does not automatically re-record.
+
+Use `--all` to bypass the menu, or `--no-interactive` for unattended operation.
+Redirected input and `CI=true` default to non-interactive; `--interactive` explicitly
+enables the menu. `--journey` always bypasses it. For machine-readable selector
+JSON, use `--journey <name>` or `--all` with `--inspect-selectors`.
+In non-interactive mode without `--journey`, every `.yml` recording is
 validated, including older recordings. Validation reports invalid journeys and
 all their missing screenshot paths without writing any output. Paths stored in
 YAML are relative to the app project; changing `screenshots_directory` does not

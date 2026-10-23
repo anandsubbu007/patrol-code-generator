@@ -1,0 +1,8 @@
+{
+  "chat.tools.terminal.autoApprove": {
+    "/^command -v dart; command -v flutter$/": {
+      "approve": true,
+      "matchCommandLine": true
+    }
+  }
+}

@@ -120,13 +120,22 @@ Run it from the example directory:
 ```sh
 cd example
 dart run patrol_recorder_generator:generate --journey my_login
-# Or generate every recorded *.yml:
+# Or choose a journey, preview, inspect selectors, or reset interactively:
 dart run patrol_recorder_generator:generate
+# Generate every recorded *.yml without prompting:
+dart run patrol_recorder_generator:generate --all
 ```
 
 If your terminal is already in `example/`, omit the `cd example` line. From the
 repository root, the equivalent one-off invocation is
 `dart --directory=example run patrol_recorder_generator:generate`.
+
+The terminal menu returns after validation failures so stale recordings do not
+prevent selecting a valid journey. Reset offers YAML-only, YAML plus screenshots,
+or those files plus generated code (including user-owned inputs/tests), lists the
+exact files, and requires typing `DELETE`. Re-record in DevTools afterward.
+Use `--no-interactive` for unattended batch generation; redirected input or
+`CI=true` also disables prompts by default.
 
 The output is:
 

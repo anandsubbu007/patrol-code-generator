@@ -339,8 +339,11 @@ supported public widget types. Repeated targets can use a unique ancestor
 From the app directory:
 
 ```sh
-# Generate all *.yml journeys in the configured source directory.
+# Choose a journey or another action interactively in a terminal.
 dart run patrol_recorder_generator:generate
+
+# Generate all *.yml journeys without the menu.
+dart run patrol_recorder_generator:generate --all
 
 # Generate one named journey.
 dart run patrol_recorder_generator:generate --journey login
@@ -356,7 +359,22 @@ The CLI validates the selected batch before writing: supported schema, matching
 journey filename, a resolvable app entrypoint, stopped recording, valid references/selectors, reviewed
 incomplete actions, and referenced screenshots. Errors return a nonzero exit
 status. YAML with no included actions is not turned into an empty passing test.
-Without `--journey`, this includes older `.yml` recordings in the configured
+Without `--journey`, a terminal menu offers single/batch generation, preview,
+selector inspection, reset, re-recording guidance, and cancellation. Validation
+failures return to the menu so you can choose another journey. Empty or missing
+recordings folders show guidance instead of failing immediately.
+
+Reset lets you choose YAML only, YAML plus referenced screenshots, or both plus
+generated journey files **including user-owned inputs and tests**. It lists exact
+files and requires typing `DELETE`; fixture assets, unreferenced captures,
+unrelated files, and directories are preserved. Malformed YAML supports YAML-only
+reset; repair it before resetting associated files. Stop recording before reset,
+then record again in DevTools. The generator does not record or execute tests.
+
+`--all` bypasses the menu. Redirected input, `CI=true`, and `--no-interactive` retain
+unattended batch behavior; `--interactive` explicitly enables prompts.
+Use `--journey` or `--all` with `--inspect-selectors` for JSON without menu text.
+Batch generation includes older `.yml` recordings in the configured
 directory. Validation errors list invalid journeys and missing screenshot paths,
 and no output is written for a failed batch. Restore captures or re-record the
 affected journey; screenshot paths are relative to the app project and changing

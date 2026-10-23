@@ -106,3 +106,6 @@ Advanced cases/fixtures remain YAML-authored, not a new DevTools case editor.
 - Recorder 0.0.2 is published; 0.0.3 and companion tooling uploads still require
   explicit owner approval. Do not add a Run button, arbitrary process
   launching, or a custom execution engine as an implicit part of this roadmap.
+
+## Beautify
+- Add proper doc comment on generated .g test files
