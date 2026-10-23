@@ -188,6 +188,7 @@ Future<GenerationSummary> generateProject(
   if (paths.isEmpty) throw StateError('No .yml journeys found in $recordings.');
   final originals = <Uri, String>{};
   final outputs = <GeneratedJourney>[];
+  final validationErrors = <String>[];
   for (final uri in paths) {
     try {
       final yaml = await workspace.read(uri);
@@ -207,23 +208,37 @@ Future<GenerationSummary> generateProject(
         defaults,
         legacy: recording.legacyApp,
       );
+      final missingScreenshots = <String>[];
       for (final image in recording.screenshots) {
         if (!await workspace.exists(root.resolve(image.path))) {
-          throw StateError(
-            'Missing recorded screenshot: ${image.path}. Restore it or re-record the journey.',
-          );
+          missingScreenshots.add(image.path);
         }
+      }
+      if (missingScreenshots.isNotEmpty) {
+        throw StateError(
+          'Missing recorded screenshots:\n'
+          '${missingScreenshots.map((path) => '  - $path').join('\n')}\n'
+          'Screenshot paths in YAML are relative to the app project: ${root.toFilePath()}\n'
+          'Restore these files or re-record "${recording.id}" in DevTools. '
+          'Changing screenshots_directory does not update existing recordings.',
+        );
       }
       originals[uri] = yaml;
       outputs.add(recording.generate(defaults, app: app));
     } on FormatException catch (error) {
-      throw FormatException(
-        '${uri.pathSegments.last}: ${error.message}\n'
-        'Re-record this journey or fix its identified widget keys. Dynamic values belong in the Dart input provider, not YAML.',
-      );
+      validationErrors.add('${uri.pathSegments.last}: ${error.message}');
     } on StateError catch (error) {
-      throw StateError('${uri.pathSegments.last}: ${error.message}');
+      validationErrors.add('${uri.pathSegments.last}: ${error.message}');
     }
+  }
+  if (validationErrors.isNotEmpty) {
+    throw StateError(
+      '${journey == null ? 'Batch validation checks every .yml journey in $recordings/ (${paths.length} selected).' : 'Validation checks only the selected journey "$journey".'}\n'
+      '${validationErrors.join('\n\n')}\n\n'
+      'No output files were written. Fix the invalid recordings and retry.'
+      '${journey == null ? '\nWithout --journey, an invalid recording blocks the entire batch.' : ''}'
+      '${journey == null && outputs.isNotEmpty ? '\nValid journeys: ${outputs.map((output) => output.config.journeyId).join(', ')}.\nTo generate only one of these, add --journey ${outputs.first.config.journeyId} to your original command.' : ''}',
+    );
   }
   final files = <String, Uint8List>{};
   for (final output in outputs) {

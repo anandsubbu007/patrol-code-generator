@@ -34,10 +34,18 @@ dart run patrol_recorder_generator:generate --project /path/to/app
 dart run patrol_recorder_generator:generate --help
 ```
 
-The CLI validates the selected batch before writing: schema 1/2/3, stopped state,
+The CLI validates the selected batch before writing: schema 1/2/3/4, stopped state,
 input references, selectors, app bootstrap, screenshot existence, and safe paths.
 `--recordings-directory` overrides YAML discovery for one invocation. Invalid
 sources and unsafe writes produce explicit failures and nonzero exit status.
+Without `--journey`, every `.yml` recording in the configured directory is
+validated, including older recordings. Validation reports invalid journeys and
+all their missing screenshot paths without writing any output. Paths stored in
+YAML are relative to the app project; changing `screenshots_directory` does not
+relocate existing captures or update old recordings. Restore missing captures
+or re-record the affected journey in DevTools. To generate an unaffected journey,
+add `--journey <name>` to the same command; validation failures list valid names
+when available. This selects one recording rather than skipping its validation.
 
 Each journey produces:
 

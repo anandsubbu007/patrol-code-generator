@@ -315,6 +315,12 @@ The CLI validates the selected batch before writing: supported schema, matching
 journey filename, a resolvable app entrypoint, stopped recording, valid references/selectors, reviewed
 incomplete actions, and referenced screenshots. Errors return a nonzero exit
 status. YAML with no included actions is not turned into an empty passing test.
+Without `--journey`, this includes older `.yml` recordings in the configured
+directory. Validation errors list invalid journeys and missing screenshot paths,
+and no output is written for a failed batch. Restore captures or re-record the
+affected journey; screenshot paths are relative to the app project and changing
+`screenshots_directory` does not update existing YAML. Errors list valid journey
+names when available so you can select one with `--journey <name>` instead.
 
 Default output:
 
