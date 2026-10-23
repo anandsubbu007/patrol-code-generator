@@ -281,14 +281,14 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "0.0.1"
+    version: "0.0.4"
   patrol_recorder_generator:
     dependency: "direct dev"
     description:
       path: "../tool/patrol_recorder_generator"
       relative: true
     source: path
-    version: "0.0.1"
+    version: "0.0.4"
   pub_semver:
     dependency: transitive
     description:

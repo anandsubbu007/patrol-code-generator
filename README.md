@@ -15,9 +15,11 @@ DevTools Record -> patrol_recorder/<journey>.yml
 
 No recording calls are needed in application button/text-field callbacks.
 Recording setup stays in a test-only entrypoint, not application `lib/`.
-This is an **experimental 0.0.3 package**, not a universal or production-certified
-recorder. Tested: Flutter 3.47.7 / Dart 3.13.5, DevTools 2.60.0, Patrol 4.10.0,
-Patrol CLI 4.8.0, Node 22.23.4, Flutter web.
+This is an **experimental project**, not a universal or production-certified
+recorder. `patrol_recorder` 0.0.3 is published; this checkout prepares recorder
+and generator 0.0.4 for the next release. The tested local environment was Flutter
+3.47.7 / Dart 3.13.5, DevTools 2.60.0, Patrol 4.10.0, Patrol CLI 4.8.0, Node
+22.23.4, and Flutter web.
 
 ## At a glance
 
@@ -31,15 +33,18 @@ Patrol CLI 4.8.0, Node 22.23.4, Flutter web.
 - Pick a widget in DevTools and save bounded expectations with editable text suggestions.
 - Author schema-5 cases, typed fixture profiles, setup/groups, assets, and selector overrides.
 
-The recorder declares compatibility with all Flutter targets: Android, iOS, web,
-Linux, macOS, and Windows. Its runtime uses Flutter APIs and has no native plugin
-implementation. **The complete recording/replay workflow has only been verified
-on Flutter web in Chrome-compatible browsers**; Android, iOS, and desktop
-end-to-end integration remain unvalidated for this release. Native dialogs and
-arbitrary custom gestures are not supported. Do not infer end-to-end verification
-from Patrol's own platform coverage. Recording requires debug mode; keep the
-generator and Patrol as dev dependencies. The recorder can also be dev-only when
-imported only by a recording entrypoint outside application `lib/`.
+This is a Flutter package, not a plain-Dart package or native plugin. Its runtime
+uses Flutter widgets, rendering, and `dart:ui` APIs, so it cannot run in a
+standalone Dart VM without Flutter. Package metadata does not declare a
+platform allowlist: the complete recording/replay workflow has only been
+verified on Flutter Web in Chrome-compatible browsers, and Android, iOS, Linux,
+macOS, and Windows end-to-end behavior remains unverified. This avoids implying
+that the package is Web-only while also avoiding an unverified all-platform
+claim. Native dialogs and arbitrary custom gestures are not supported. Do not
+infer end-to-end verification from Flutter or Patrol's platform coverage.
+Recording requires debug mode; keep the generator and Patrol as dev dependencies.
+The recorder can also be dev-only when imported only by a recording entrypoint
+outside application `lib/`.
 Patrol Recorder is an independent project, not an official Patrol product.
 
 ## Screenshots and demo
@@ -92,14 +97,12 @@ from private input values or created by a DevTools case editor.
 
 ## Install from pub.dev
 
-Recorder 0.0.2 is already published. The following setup targets the upcoming
-0.0.3 release and matching generator; use the [repository setup](#setup-and-record)
-until those release artifacts are available.
-
-In your Flutter app:
+For the 0.4 release, publish the recorder first and the generator second.
+After both package pages list 0.4 or a later compatible 0.0.x version, add
+them with a range that accepts patch releases without allowing 0.1.0:
 
 ```sh
-flutter pub add --dev patrol_recorder:^0.0.3 patrol_recorder_generator:^0.0.1 patrol:4.10.0
+flutter pub add --dev 'patrol_recorder:>=0.0.4 <0.1.0' 'patrol_recorder_generator:>=0.0.4 <0.1.0' 'patrol:4.10.0'
 dart pub global activate patrol_cli 4.8.0
 ```
 
@@ -110,13 +113,17 @@ put **only the recorder** in regular dependencies instead:
 dependencies:
   flutter:
     sdk: flutter
-  patrol_recorder: ^0.0.3
+  patrol_recorder: '>=0.0.4 <0.1.0'
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  patrol_recorder_generator: ^0.0.1
+  patrol_recorder_generator: '>=0.0.4 <0.1.0'
   patrol: 4.10.0
 ```
+
+The ranges deliberately start at 0.0.4, so they do not silently install the
+older recorder 0.0.3 or resolve the generator before its first publication.
+Run `flutter pub get` after adding them and confirm the resolved versions.
 
 The recorder has only the Flutter SDK as a direct runtime dependency. The
 generator owns `analyzer`, `dart_style`, `yaml`, and `args`. These are regular
@@ -124,9 +131,15 @@ dependencies of the tooling package so its CLI works for consumers, but the
 tooling package itself is an app **dev dependency**. Moving code out of `lib/`
 alone would not provide this separation.
 
-Use Flutter >=3.47.0 / Dart >=3.13.0 (the bundled example requires Dart >=3.13.5).
-Install Node 22 for the tested Patrol web workflow. Hosted users receive the
-compiled DevTools extension; **no repository clone or extension build is needed**.
+The recorder's declared minimums are Flutter >=3.47.0 and Dart >=3.13.0; the
+example uses Dart >=3.13.5. Node.js is used by Patrol's web test tooling, not
+declared by this package. Node 22.23.4 completed the recorded clean web setup.
+An earlier clean Playwright browser installation stalled under Node 26.12.0;
+the current audit host replayed with its existing local browser dependencies,
+which does not prove a clean Node 26 setup. Use Node 22.23.4 for reproducible
+first-time validation. Once both packages are published, users receive the
+compiled DevTools extension with the recorder; no repository clone or extension
+build is needed.
 
 1. Add a [recording-only entrypoint](#use-in-your-own-app) wrapping your root
    widget with `RecorderScope`.
@@ -172,8 +185,9 @@ Maestro's platform coverage and maturity do not imply equivalent support here.
 
 ### 1. Repository development: install and build
 
-Use a Flutter-supported Chrome-compatible browser and Node 22 on PATH. Check
-`flutter doctor`, `flutter devices`, and `node --version`.
+Use a Flutter-supported Chrome-compatible browser and Node 22.23.4 on PATH for
+the documented first-time Patrol web setup. Check `flutter doctor`,
+`flutter devices`, and `node --version`.
 
 From this repository root:
 
@@ -472,8 +486,8 @@ dart pub global run patrol_cli:main test --device chrome --web-headless
 
 Use your actual path/tag. `patrol` is equivalent to `dart pub global run
 patrol_cli:main` if the global executable is on PATH. The first web run installs
-official Node/Playwright dependencies. Use the tested Node 22 directly on PATH;
-do not wrap Patrol in `npx --call`.
+official Node/Playwright dependencies. Use Node 22 directly on PATH; do not wrap
+Patrol in `npx --call`.
 
 Run individual generated tests through Patrol CLI with `--target`, not VS Code's
 standard **Run Test / Debug Test** buttons or direct `flutter test`. Patrol CLI
@@ -580,14 +594,16 @@ Avoid concurrent recording/generation/editing of the same journey.
 
 ## Use in your own app
 
-After publication, for a test-only recording entrypoint:
+The following dependency setup is for after recorder and generator 0.0.4 are
+published. Until then, only recorder 0.0.3 is hosted, and the complete workflow
+cannot be installed from pub.dev.
 
 ```yaml
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  patrol_recorder: ^0.0.3
-  patrol_recorder_generator: ^0.0.1
+  patrol_recorder: '>=0.0.4 <0.1.0'
+  patrol_recorder_generator: '>=0.0.4 <0.1.0'
   patrol: 4.10.0
 
 patrol:
@@ -671,8 +687,8 @@ parameters and syntax errors fail generation explicitly. A custom factory must
 return a Widget; supply other setup in your test wrapper/provider as needed.
 The recording entrypoint must not end with `_test.dart`.
 
-YAML schemas 1 and 2 remain readable with their original compatibility behavior;
-re-recording writes schema 3 without `app`/`session_id`. If an old recorder configuration deliberately
+YAML schemas 1-4 remain readable with their original compatibility behavior;
+new recordings use schema 5 without `app`/`session_id`. If an old recorder configuration deliberately
 selected a custom factory, move that selection into pubspec before re-recording.
 Do not assume arbitrary app-specific initialization can be inferred automatically.
 
@@ -681,7 +697,7 @@ Do not assume arbitrary app-specific initialization can be inferred automaticall
 | Symptom                                | Action                                                                                                                                                                                |
 | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Extension missing/unavailable          | Build/copy/validate extension assets; run the debug recording entrypoint; enable the real DevTools extension                                                                          |
-| Protocol mismatch                      | Restart the recording app and reload rebuilt DevTools assets; runtime protocol is 5, new YAML schema is 3                                                                             |
+| Protocol mismatch                      | Restart the recording app and reload rebuilt DevTools assets; runtime protocol is 6, new YAML schema is 5                                                                             |
 | No destination                         | Refresh authorized projects using a Flutter/IDE DTD session; never use an unrestricted daemon                                                                                         |
 | YAML NOT UP TO DATE                    | Keep the draft open; resolve permissions/concurrent edits and Retry YAML save                                                                                                         |
 | App restarted or browser closed        | Last persisted YAML survives. Re-record the same name if the source remains unfinished; do not treat an interrupted flow as complete                                                  |
@@ -793,12 +809,19 @@ Report bugs and feature requests in the
 Include Flutter/Dart, DevTools and Patrol versions, browser, sanitized YAML,
 reproduction steps, and the complete error. Remove credentials, screenshots of
 private content, and authenticated VM Service/DTD URLs before sharing.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for checkout setup, checks, and pull
+request guidance.
 
 ## Publication status
 
-The recorder's **0.0.2** release is already published. **0.0.3** is the next
-release, adding explicit expectations, schema-5 tooling/examples, and refreshed
-documentation/media. The generator remains a separate package at **0.0.1**.
-Follow the [release checklist](doc/PUBLISHING.md) to validate its hosted dependency
-and prepare its release independently.
+This checkout prepares recorder and generator **0.0.4** for publication. The
+release order is recorder first, then generator; after both uploads, confirm
+the hosted package pages and run the clean consumer workflow. The repository
+example uses local path dependencies; that validates local development, not
+hosted installation.
+Version 0.0.3 remains an immutable published release with its original
+documentation and six declared Flutter targets. Version 0.0.4 does not declare
+a platform allowlist; end-to-end verification remains Web-only. See the
+[release checklist](doc/PUBLISHING.md) for the ordered release and validation
+steps.
 The example and extension source app intentionally remain unpublished.

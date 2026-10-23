@@ -1,9 +1,24 @@
-# Publishing Patrol Recorder 0.0.3
+# Publishing Patrol Recorder and its generator
 
-The recorder's `0.0.2` release is already published. The next recorder release
-is `0.0.3`, which adds explicit expectations, the schema-5 fixture/case workflow,
-and updated examples and publication media. Do not attempt to replace 0.0.2.
-Historical preparation evidence below refers to the original `0.0.1` release.
+## 0.0.4 release plan (checked 2026-10-23)
+
+- The last confirmed hosted recorder release is `patrol_recorder` **0.0.3**.
+  Its published contents are immutable and its metadata declares six Flutter
+  targets; only the Web end-to-end workflow is verified.
+- Version 0.0.4 omits a platform allowlist rather than declaring Web-only or
+  claiming every Flutter target. The package uses Flutter APIs and is not a
+  standalone Dart package; end-to-end behavior beyond Web still needs testing.
+- This checkout prepares `patrol_recorder` **0.0.4** and
+  `patrol_recorder_generator` **0.0.4**. Publish the recorder first, then the
+  generator. Do not describe either 0.4 package as hosted until verified on
+  pub.dev.
+- The generator dependency uses `patrol_recorder: '>=0.0.4 <0.1.0'`. This
+  admits compatible 0.0.x patch releases but excludes 0.0.3 and 0.1.0.
+- Consumer instructions use the same range for both Patrol Recorder packages.
+  Patrol 4.10.0 and Patrol CLI 4.8.0 remain pinned to the versions used by the
+  validated example.
+- The source tree may be ahead of the hosted release. Publishing makes the
+  package archives permanent; review the exact staged contents first.
 
 This checklist prepares two packages. It does not authorize an automated upload.
 Publishing makes an archive public; treat the released version as permanent.
@@ -23,8 +38,9 @@ Patrol remains a separate test-runner dependency for executing generated tests.
 The example and extension source app use a path dependency to the root for
 development; the published packages have no local path dependencies.
 The generator uses a local `pubspec_overrides.yaml` for checkout development,
-excluded from its archive. Its published manifest depends on hosted recorder
-`^0.0.3`, so recorder 0.0.3 must be published before hosted-only generator validation.
+excluded from its archive. Its release manifest depends on hosted recorder
+`>=0.0.4 <0.1.0`; archive validation must omit the local override and follow
+recorder 0.0.4 publication.
 
 ## Required owner decisions
 
@@ -44,8 +60,10 @@ excluded from its archive. Its published manifest depends on hosted recorder
 
 ## Build and validate from the repository root
 
-Use the SDK versions and Node 22 documented in the README. Do not lower SDK
-constraints solely to improve a compatibility score without testing that SDK.
+Use Flutter 3.47.7 / Dart 3.13.5 and Node 22.23.4 for first-time web validation.
+An earlier clean Playwright browser installation stalled under Node 26.12.0.
+Do not lower SDK constraints solely to improve a compatibility score without
+testing that SDK.
 
 ```sh
 flutter pub get
@@ -102,7 +120,7 @@ deleted old generator paths as "checked-in files ... ignored by a .gitignore".
 Review and commit the moves/deletions, then rerun; do not loosen ignore rules
 merely to hide a transitional warning.
 
-## 0.0.3 preparation (2026-10-23)
+## Recorder 0.0.3 publication evidence (2026-10-23)
 
 - The example now contains a real fixture lab, text/JSON fixture files, a maintained
   two-case schema-5 journey, generated outputs, and implemented user-owned adapters.
@@ -113,12 +131,15 @@ merely to hide a transitional warning.
   not a video of DevTools, generation, or replay. No fresh live dialog capture is claimed.
 - `example/example.md` supplies the pub.dev Example tab; the normal app entrypoint
   stays recorder-free. The generator now requires recorder `^0.0.3` and its local
-  CLI checks pass; repeat hosted-only resolution after recorder publication.
+  CLI checks pass; hosted-only generator resolution remains blocked until its
+  first publication.
 - The root 0.0.3 dry run includes the new examples/assets/images in an approximately
   15 MB archive. Its remaining warning is the dirty git worktree. Commit reviewed
   release files yourself and rerun the dry run before any explicit upload.
 
-No 0.0.3 upload was performed. Historical evidence follows.
+The pub.dev API reports recorder 0.0.3 as published on 2026-10-23. No generator
+publication or hosted end-to-end consumer test is evidenced here. Historical
+prepublication preparation evidence follows.
 
 ## Preparation evidence (2026-10-22)
 
@@ -141,29 +162,99 @@ No 0.0.3 upload was performed. Historical evidence follows.
   warnings remained. The repository dry run still exits with warnings for the
   uncommitted release changes/deleted old package paths described above.
 - A standalone staged generator archive dry run passed with zero warnings
-  (approximately 22 KB). It used a temporary local recorder override because
-  the recorder is not yet published; Pub reported that override as a hint.
+  (approximately 22 KB). At that time, the recorder was not yet published, so
+  it used a temporary local recorder override; Pub reported that override as a
+  hint.
   Repeat without overrides against the hosted recorder before publishing.
 
-No upload was performed. A fresh complete record -> generate -> Patrol replay
-and a post-publication hosted install remain owner release checks; do not
-interpret the temporary consumer or app video as proof of those stages.
+Historical evidence only: the 2026-10-22 preparation did not perform an upload.
+The recorder was subsequently published as 0.0.3. A hosted generator install
+and complete hosted record -> generate -> Patrol replay remain release checks;
+do not interpret local-path consumer tests or app video as proof of those stages.
 
-## Publish explicitly
+## Interactive release script
 
-Only the owner should run these commands after reviewing the dry run:
+Run this internal helper from the repository root:
 
 ```sh
-# Repository root. This uploads the recorder and can require browser sign-in.
+python3 tool/publish_packages.py
+```
+
+It coordinates the two package releases; it does not commit, tag, create a
+GitHub release, or bypass the package owner's confirmations. Its flow is:
+
+1. It reads both manifest versions and stops if they differ.
+2. It asks whether to increment the coordinated version. **No or Enter is the
+   default.** If you answer Yes, enter a stable `MAJOR.MINOR.PATCH` greater
+   than the current version. The existing `prepare_release.py` updates both
+   package versions, updates the generator's recorder range and matching
+   documentation ranges, and inserts changelog TODO sections. The publisher
+   then exits without running tests or uploading. Edit the release notes and
+   publication-status documentation, complete all TODOs, run the checks,
+   review and commit the changes, and rerun the publisher. If the entered
+   version is the current version, it continues without making a bump.
+3. Before a no-bump release, it requires a clean Git worktree and complete
+   version-specific changelogs. It stops if the generator version already
+   exists. If the recorder version is already hosted, it treats that upload as
+   complete and skips directly to generator validation/publication; this lets
+   you resume after a partial release or validate the generator after releasing
+   the recorder. This clean-worktree gate prevents Pub's dirty-file archive
+   warning and ensures the uploaded package is the reviewed commit.
+4. It runs recorder `flutter analyze lib test`, `flutter test`, and
+   `flutter pub publish --dry-run` from the repository root. Any failure stops
+   the process before an upload.
+5. If the recorder version is not already hosted, it asks for a separate
+   Yes/No and requires the exact text `patrol_recorder@VERSION` before invoking
+   `flutter pub publish`. Declining or entering a different string stops
+   without uploading. After an upload, it checks pub.dev until that exact
+   version is visible. If the check cannot confirm it, generator publication
+   stops.
+6. It copies only the generator's release files into a temporary directory.
+   The local `pubspec_overrides.yaml` is not copied. There it runs `flutter pub
+   get` against the hosted recorder range, `flutter analyze`, `flutter test`,
+   and the generator archive dry-run. Any failure stops before generator
+   upload.
+7. It asks for a separate confirmation and exact
+   `patrol_recorder_generator@VERSION` text before invoking the generator
+   `flutter pub publish` from that temporary directory. It checks that the
+   published generator version appears on pub.dev before reporting completion.
+
+The interactive helper aborts if the generator version already exists, because
+Pub releases are immutable. If the recorder upload succeeded but generator
+validation or upload did not, rerun the script for the same version: it detects
+the hosted recorder and resumes at generator validation. Review the console
+output carefully; the generator still requires its own separate confirmation.
+
+`--dry-run-only` runs the same preflight and validations, but skips upload
+confirmations and uploads. The generator still resolves its recorder dependency
+from pub.dev, so this option can validate both archives only when that exact
+recorder version is already hosted. Before the first upload, inspect the
+recorder with the manual root dry-run below; do not claim that a local override
+or local generator copy proves hosted dependency resolution.
+
+## Manual publication and recovery
+
+Make sure the release changes are committed and the worktree is clean first.
+The recorder dry-run executed during preparation listed all required files and
+ownership markers but exited with a warning because the worktree was dirty.
+Repeat it after committing; stop if validation reports anything else.
+
+```sh
+# From the repository root; inspect the complete archive listing and validation.
+flutter pub publish --dry-run
+# After review, publish only with the package owner's approval.
 flutter pub publish
 ```
 
-Wait until `https://pub.dev/packages/patrol_recorder/versions/0.0.3` is available.
-Then validate and publish the generator against the hosted recorder.
+Wait until `https://pub.dev/packages/patrol_recorder/versions/0.0.4` is
+available. Confirm the hosted pubspec, metadata, README, screenshots, and
+platform list before proceeding.
+
 The root `.pubignore` deliberately excludes `tool/` from the runtime archive.
 Pub inherits ancestor ignore rules, so publishing the generator directly from
 that nested directory can incorrectly produce an empty archive. Stage only its
-release files in a separate temporary directory, without copying local overrides:
+release files in a separate temporary directory, without copying local overrides.
+After recorder 0.0.4 is confirmed hosted:
 
 ```sh
 cd tool/patrol_recorder_generator
@@ -175,7 +266,7 @@ flutter pub get
 flutter analyze
 flutter test
 flutter pub publish --dry-run
-# Review every file and warning before this explicit upload:
+# Review the complete archive. Then publish from the staging directory:
 flutter pub publish
 ```
 
@@ -187,21 +278,26 @@ Keep `args`, `yaml`, `dart_style`, and `analyzer` as regular dependencies of
 the generator, **not** the recorder. The generator itself is a dev dependency
 of the consuming app. Do not move the CLI's dependencies into its own
 `dev_dependencies`: those would not be resolved for consumers.
-The generator dry run before recorder publication may fail hosted resolution;
-a successful local override-based check is not proof of a public install.
+The generator dry run must resolve hosted `patrol_recorder` in
+`>=0.0.4 <0.1.0` without overrides. A successful local override-based check is
+not proof of a public install.
 
-## After publication
+## After both uploads
 
 - [ ] Confirm package pages show the intended license, README, screenshots,
       repository/issue links, SDK constraints, and supported platform claims.
-- [ ] Add `patrol_recorder` and dev-only `patrol_recorder_generator` in a clean
-      external Flutter app with no path overrides. Verify
-      `dart run patrol_recorder_generator:generate --help`, enable the packaged DevTools
-      extension, and run the demo flow. Add `patrol` separately for test execution.
+- [ ] In a clean external Flutter app with no path dependencies or overrides,
+      install `patrol_recorder` and dev-only `patrol_recorder_generator` using
+      the documented range. Add `patrol` separately for test execution.
+- [ ] Verify `dart run patrol_recorder_generator:generate --help`, enable the
+      packaged DevTools extension, record and stop a fictional-data journey,
+      generate it, implement the user-owned input provider and outcome assertion,
+      run it through Patrol CLI, and regenerate to confirm user files survive.
 - [ ] Review pub.dev analysis and generated API documentation. Resolve actual
       findings rather than promising a score before the server analyzes the upload.
 - [ ] Create a source tag/release for the exact published commit; attach the demo
-      video if useful. Update installation/status wording only after upload succeeds.
+      video if useful. Update any remaining release-candidate wording only after
+      both uploads are confirmed.
 
 ## What pub.dev does not require
 

@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.7
+          cache: true
+
+      - name: Check Dart formatting
+        run: |
+          dart format --output=none --set-exit-if-changed \
+            lib test \
+            tool/patrol_recorder_generator/lib tool/patrol_recorder_generator/bin tool/patrol_recorder_generator/test \
+            tool/devtools_extension/lib tool/devtools_extension/test tool/devtools_extension/tool \
+            example/lib example/test example/patrol_test
+
+      - name: Test recorder package
+        run: |
+          flutter pub get
+          flutter analyze lib test
+          flutter test
+
+      - name: Test generator CLI
+        working-directory: tool/patrol_recorder_generator
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test
+          dart run patrol_recorder_generator:generate --help
+
+      - name: Test and validate DevTools extension
+        working-directory: tool/devtools_extension
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test
+          dart run devtools_extensions build_and_copy --source=. --dest=../../extension/devtools
+          dart run devtools_extensions validate --package=../..
+
+      - name: Test example app
+        working-directory: example
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test

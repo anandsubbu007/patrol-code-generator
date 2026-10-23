@@ -1,6 +1,6 @@
 name: patrol_recorder
 description: Lightweight debug Flutter recording with DevTools widget selection, YAML journeys, and editable Patrol tests.
-version: 0.0.3
+version: 0.0.4
 repository: https://github.com/anandsubbu007/patrol-code-generator
 issue_tracker: https://github.com/anandsubbu007/patrol-code-generator/issues
 topics:
@@ -8,13 +8,6 @@ topics:
   - devtools
   - patrol
   - recording
-platforms:
-  android:
-  ios:
-  linux:
-  macos:
-  web:
-  windows:
 screenshots:
   - description: Connected Patrol Recorder DevTools extension ready to record.
     path: doc/images/recorder.png

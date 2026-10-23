@@ -1,3 +1,10 @@
+## 0.0.4
+
+- Correct publication and installation status, clarify hosted workflow blockers,
+  avoid implying Web-only compatibility in package metadata while clearly
+  documenting the Web-only end-to-end verification, and add contributor setup
+  and automated repository checks.
+
 ## 0.0.3
 
 - Add a one-shot DevTools widget picker for bounded exists/absent/visible/text/count

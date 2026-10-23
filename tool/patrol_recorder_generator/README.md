@@ -6,12 +6,19 @@ providers and test wrappers. It does not record interactions or execute tests.
 
 ## Install
 
-After both packages are published:
+For the 0.4 release, publish `patrol_recorder` before this package. After both
+are available on pub.dev, add them with compatible 0.0.x ranges:
 
 ```sh
-flutter pub add patrol_recorder:^0.0.3
-flutter pub add --dev patrol_recorder_generator:^0.0.1 patrol:4.10.0
+flutter pub add --dev 'patrol_recorder:>=0.0.4 <0.1.0' 'patrol_recorder_generator:>=0.0.4 <0.1.0' 'patrol:4.10.0'
 ```
+
+The lower bound prevents resolving the older 0.0.3 recorder; the upper bound
+avoids automatically accepting a potentially breaking 0.1.0 release.
+
+For repository development, follow the root
+[contributor guide](../../CONTRIBUTING.md), which uses local paths and is not a
+substitute for a clean hosted consumer test.
 
 If recorder APIs are imported only from a test-only recording entrypoint, both
 recorder and generator may be dev dependencies instead. If application widgets
@@ -20,8 +27,12 @@ The runtime recorder depends only on Flutter; formatter, analyzer, YAML, and
 argument parsing dependencies belong to this tooling package.
 
 Requires Dart >=3.13.0 and Flutter >=3.47.0 through the recorder dependency.
-Use Flutter for dependency resolution and tests. Recording/replay is verified
-on Flutter web; other platforms remain unverified.
+The tested local toolchain is Flutter 3.47.7 / Dart 3.13.5. Patrol's web test
+tooling uses Node.js; Node 22.23.4 completed the recorded clean web setup.
+An earlier clean Playwright browser installation stalled under Node 26.12.0.
+Use Flutter for dependency resolution and tests. The complete local
+recording/replay workflow is verified on Flutter web only; other platforms
+remain unverified.
 
 ## Generate
 
@@ -223,9 +234,10 @@ asset contents rather than silently skipping the step.
 ## Development and publishing
 
 The local `pubspec_overrides.yaml` resolves `patrol_recorder` from the checkout.
-It is excluded from the published archive. The release manifest uses the hosted
-dependency `patrol_recorder: ^0.0.3`, which supplies the updated expectation
-transport types. Publish recorder 0.0.3 before validating hosted-only resolution.
+It is excluded from the published archive. The release manifest uses hosted
+dependency `patrol_recorder: '>=0.0.4 <0.1.0'`, which supplies the expectation
+transport types. After publishing the recorder, verify this generator package
+resolves without overrides before publishing it.
 The repository root excludes `tool/` from its runtime archive, and Pub
 inherits those exclusions.
 For generator publication, stage its source and release metadata outside the

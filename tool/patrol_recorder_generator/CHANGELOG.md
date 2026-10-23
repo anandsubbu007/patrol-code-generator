@@ -1,3 +1,8 @@
+## 0.0.4
+
+- Prepare the generator for the coordinated 0.0.4 release and document the
+  hosted validation sequence.
+
 ## 0.0.1
 
 * Separate development-only YAML-to-Patrol generation from the lightweight
