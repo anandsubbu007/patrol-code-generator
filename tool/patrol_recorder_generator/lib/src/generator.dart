@@ -5,6 +5,8 @@ import 'package:dart_style/dart_style.dart';
 import 'package:patrol_recorder/model.dart';
 import 'package:yaml/yaml.dart';
 
+import 'authored_step.dart';
+
 String dartLiteral(String value) => jsonEncode(value).replaceAll(r'$', r'\$');
 
 String validateRelativePath(String value) {
@@ -239,6 +241,11 @@ GeneratedJourney generateJourney({
   required ExportConfig config,
   Map<String, String> inputValues = const {},
   Set<String> deferredInputs = const {},
+  Map<String, JourneyInput> typedInputs = const {},
+  Map<String, Object?> typedValues = const {},
+  Map<String, Map<String, Object?>> typedProfiles = const {},
+  Map<String, Object> assetValues = const {},
+  Map<String, JourneyAssetFormat> assetFormats = const {},
 }) {
   if (app.appImport == null || app.appBuilder == null) {
     throw const FormatException(
@@ -251,6 +258,27 @@ GeneratedJourney generateJourney({
     );
   }
   for (final step in steps) {
+    if (step is AssetStep) {
+      if (!assetValues.containsKey(step.asset) ||
+          !assetFormats.containsKey(step.asset)) {
+        throw FormatException(
+          '${step.id}: asset ${step.asset} was not resolved. Load it from the configured recordings root before generation.',
+        );
+      }
+      final value = assetValues[step.asset];
+      if (assetFormats[step.asset] == JourneyAssetFormat.text
+          ? value is! String
+          : !JourneyInput(type: JourneyInputType.json).accepts(value)) {
+        throw FormatException(
+          '${step.id}: asset ${step.asset} has an invalid decoded value.',
+        );
+      }
+      if (utf8.encode(value is String ? value : jsonEncode(value)).length >
+          1024 * 1024) {
+        throw FormatException('${step.id}: asset ${step.asset} exceeds 1 MiB.');
+      }
+      continue;
+    }
     if (step.target.issue != null ||
         step.action == RecordedAction.unsupported) {
       throw FormatException(
@@ -259,26 +287,70 @@ GeneratedJourney generateJourney({
     }
   }
   final requirements = requiredInputs(steps);
+  for (final entry in typedInputs.entries) {
+    requireIdentifier(entry.key, 'Input name');
+    final existing = requirements.where(
+      (requirement) => requirement.name == entry.key,
+    );
+    if (existing.isEmpty) {
+      requirements.add(InputRequirement(entry.key, entry.value.secret));
+    } else if (existing.single.secret != entry.value.secret) {
+      throw FormatException(
+        'Input ${entry.key} has conflicting secret classifications.',
+      );
+    }
+  }
+  requirements.sort((first, second) => first.name.compareTo(second.name));
+  if (requirements.map((requirement) => requirement.getter).toSet().length !=
+      requirements.length) {
+    throw const FormatException('Input names collide as Dart getters.');
+  }
+  JourneyInput definition(InputRequirement requirement) =>
+      typedInputs[requirement.name] ??
+      JourneyInput(type: JourneyInputType.string, secret: requirement.secret);
   final names = requirements.map((r) => r.name).toSet();
   if (inputValues.keys.any((key) => !names.contains(key)) ||
+      typedValues.keys.any((key) => !names.contains(key)) ||
       deferredInputs.any((key) => !names.contains(key))) {
     throw const FormatException('Input setup contains an unknown field.');
   }
   for (final r in requirements) {
-    if (r.secret && inputValues.containsKey(r.name)) {
+    if (r.secret &&
+        (inputValues.containsKey(r.name) || typedValues.containsKey(r.name))) {
       throw const FormatException(
         'Secret values must be connected outside the generator.',
       );
     }
   }
-  final profiles = <String, Map<String, String>>{
+  final profiles = <String, Map<String, Object?>>{
     for (final entry in app.safeProfiles.entries) entry.key: {...entry.value},
+    for (final entry in typedProfiles.entries) entry.key: {...entry.value},
   };
-  profiles[config.profile] = {...?profiles[config.profile], ...inputValues};
+  profiles[config.profile] = {
+    ...?profiles[config.profile],
+    ...inputValues,
+    ...typedValues,
+  };
+  for (final requirement in requirements) {
+    for (final profile in profiles.values) {
+      if (requirement.secret && profile.containsKey(requirement.name)) {
+        throw FormatException(
+          'Secret ${requirement.name} cannot contain profile literals.',
+        );
+      }
+      if (profile.containsKey(requirement.name) &&
+          !definition(requirement).accepts(profile[requirement.name])) {
+        throw FormatException(
+          'Input ${requirement.name}: wrong typed profile value.',
+        );
+      }
+    }
+  }
   for (final r in requirements.where(
     (r) => !r.secret && !deferredInputs.contains(r.name),
   )) {
-    if ((profiles[config.profile]?[r.name] ?? '').trim().isEmpty) {
+    final value = profiles[config.profile]?[r.name];
+    if (value == null || value is String && value.trim().isEmpty) {
       throw FormatException(
         'Provide ${r.name}, or choose to connect it in the user-owned Dart input file.',
       );
@@ -287,16 +359,31 @@ GeneratedJourney generateJourney({
   final formatter = DartFormatter(
     languageVersion: DartFormatter.latestLanguageVersion,
   );
+  String valueLiteral(Object value, JourneyInput input) => switch (input.type) {
+    JourneyInputType.string => dartLiteral(value as String),
+    JourneyInputType.number => (value as num).toDouble().toString(),
+    JourneyInputType.integer || JourneyInputType.boolean => '$value',
+    JourneyInputType.json =>
+      'jsonDecode(${dartLiteral(jsonEncode(value))}) as Object',
+  };
+  final usedAssets = steps
+      .whereType<AssetStep>()
+      .map((step) => step.asset)
+      .toSet();
+  final needsJson = typedInputs.values.any(
+    (input) => input.type == JourneyInputType.json,
+  );
   final contract =
       config.marker +
       formatter.format('''
 abstract class JourneyInputs {
   const JourneyInputs();
-  ${requirements.map((r) => 'String get ${r.getter};').join('\n')}
+  ${requirements.map((r) => '${definition(r).dartType} get ${r.getter};').join('\n')}
+  ${usedAssets.isNotEmpty ? "Future<void> applyAsset(String name, Object value) async { throw StateError('Implement applyAsset in the user-owned input provider before replay.'); }" : ''}
 }
 
 void validateInputs(JourneyInputs inputs) {
-  ${requirements.map((r) => '''
+  ${requirements.where((requirement) => definition(requirement).type == JourneyInputType.string).map((r) => '''
   if (inputs.${r.getter}.trim().isEmpty) {
     throw StateError(${dartLiteral('Missing ${r.secret ? 'secret' : 'input'}: ${r.name}. Connect ${r.getter} in ${config.journeyId}_inputs.dart.')});
   }''').join('\n')}
@@ -310,10 +397,16 @@ void validateInputs(JourneyInputs inputs) {
               'throw StateError(${dartLiteral('Connect ${r.getter} in ${config.journeyId}_inputs.dart before running.')})';
         } else if (r.secret) {
           expression = 'const String.fromEnvironment(${dartLiteral(r.define)})';
+        } else if (typedInputs.containsKey(r.name)) {
+          expression =
+              '''switch (profile) {
+            ${profiles.entries.map((profile) => '${dartLiteral(profile.key)} => ${profile.value[r.name] == null ? "throw StateError(${dartLiteral('Connect ${r.getter} for profile ${profile.key}.')})" : valueLiteral(profile.value[r.name] as Object, definition(r))},').join('\n')}
+            _ => throw StateError('Unknown RECORDER_PROFILE; inspect the user-owned inputs file.'),
+          }''';
         } else {
           expression =
               '''switch (profile) {
-        ${profiles.entries.map((p) => '${dartLiteral(p.key)} => ${dartLiteral(p.value[r.name] ?? '')},').join('\n')}
+        ${profiles.entries.map((p) => '${dartLiteral(p.key)} => ${dartLiteral(p.value[r.name] as String? ?? '')},').join('\n')}
         _ => throw StateError('Unknown RECORDER_PROFILE; inspect the user-owned inputs file.'),
       }''';
         }
@@ -322,11 +415,12 @@ void validateInputs(JourneyInputs inputs) {
             : r.secret
             ? '  // TODO: Supply ${r.define} securely or connect ${r.getter} to your private test provider.\n'
             : '';
-        return '$guidance@override\nString get ${r.getter} => $expression;';
+        return '$guidance@override\n${definition(r).dartType} get ${r.getter} => $expression;';
       })
       .join('\n');
   final data = formatter.format('''
 // User-owned. Connect fixtures or secret providers here. Regeneration preserves this file.
+${needsJson && requirements.any((requirement) => definition(requirement).type == JourneyInputType.json && !deferredInputs.contains(requirement.name) && profiles.values.any((profile) => profile.containsKey(requirement.name))) ? "import 'dart:convert';" : ''}
 import '${config.journeyId}_inputs.g.dart';
 
 /// User-owned input implementation; regeneration preserves this file.
@@ -377,6 +471,13 @@ Future<JourneyInputs> loadInputs() async {
         final name = 'target${index + 1}';
         final matches = 'matches${index + 1}';
         final timeout = 'const Duration(milliseconds: ${config.waitTimeoutMs})';
+        if (step is AssetStep) {
+          final value = assetValues[step.asset]!;
+          final literal = assetFormats[step.asset] == JourneyAssetFormat.text
+              ? dartLiteral(value as String)
+              : 'jsonDecode(${dartLiteral(jsonEncode(value))}) as Object';
+          return 'await _recorderAsset(inputs, ${dartLiteral(step.asset)}, $literal, $timeout, ${dartLiteral(step.id)});';
+        }
         if (step.action == RecordedAction.expect) {
           final expectation = step.expectation!;
           return 'await _recorderExpect(\$.tester, ${finder(step.target)}, '
@@ -389,13 +490,23 @@ Future<JourneyInputs> loadInputs() async {
             'Add a unique ValueKey to this widget/scroll view or a keyed ancestor if ambiguous. '
             'For delayed UI, check the API fixture/loading state and recorder_config.wait_timeout_ms/max_scrolls. '
             'For a link, use unique text inside a keyed Text.rich or a keyed TextButton.';
+        final textInput = step.input == null
+            ? ''
+            : 'inputs.${requirements.singleWhere((requirement) => requirement.name == step.input).getter}';
+        final inputExpression =
+            typedInputs[step.input]?.type == JourneyInputType.json
+            ? 'jsonEncode($textInput)'
+            : typedInputs.containsKey(step.input) &&
+                  typedInputs[step.input]!.type != JourneyInputType.string
+            ? '$textInput.toString()'
+            : textInput;
         final action = switch (step.action) {
           RecordedAction.tap =>
             'await \$($name).tap(settlePolicy: SettlePolicy.noSettle, visibleTimeout: $timeout);',
           RecordedAction.longPress =>
             'await \$($name).longPress(settlePolicy: SettlePolicy.noSettle, visibleTimeout: $timeout);',
           RecordedAction.enterText =>
-            'await \$.enterText($name, inputs.${requirements.singleWhere((r) => r.name == step.input).getter}, enablePatrolLog: false, settlePolicy: SettlePolicy.noSettle, visibleTimeout: $timeout);',
+            'await \$.enterText($name, $inputExpression, enablePatrolLog: false, settlePolicy: SettlePolicy.noSettle, visibleTimeout: $timeout);',
           RecordedAction.tapText =>
             '''
 final link${index + 1} = find.textRange.ofSubstring(${dartLiteral(step.text!)}, descendentOf: $name);
@@ -466,7 +577,7 @@ $action
     (s) => s.action == RecordedAction.scrollUntilVisible,
   );
   final selectors = [
-    for (final step in steps) ...[
+    for (final step in steps.where((step) => step is! AssetStep)) ...[
       step.target.selector!,
       if (step.target.scope != null) step.target.scope!,
     ],
@@ -483,6 +594,7 @@ $action
   final generatedSteps =
       config.marker +
       formatter.format('''
+    ${usedAssets.any((name) => assetFormats[name] == JourneyAssetFormat.json) || steps.any((step) => step.input != null && typedInputs[step.input]?.type == JourneyInputType.json) ? "import 'dart:convert';" : ''}
 ${needsEnabled ? "import 'dart:ui' as ui;" : ''}
 ${needsMaterial ? "import 'package:flutter/material.dart';" : ''}
 import 'package:flutter_test/flutter_test.dart';
@@ -499,6 +611,18 @@ Future<void> runRecordedJourney(PatrolIntegrationTester \$, JourneyInputs inputs
   final semantics = \$.tester.ensureSemantics();
   try { $body } finally { semantics.dispose(); }
 }
+
+${usedAssets.isNotEmpty ? '''
+Future<void> _recorderAsset(JourneyInputs inputs, String name, Object value,
+    Duration timeout, String stepId) async {
+  try {
+    await inputs.applyAsset(name, value).timeout(timeout);
+  } catch (error, stack) {
+    Error.throwWithStackTrace(StateError('\$stepId: asset \$name adapter failed or timed out. '
+      'Failure type: \${error.runtimeType}.'), stack);
+  }
+}
+''' : ''}
 
 ${steps.any((step) => step.action == RecordedAction.expect) ? '''
 Future<void> _recorderExpect(WidgetTester tester, Finder target,
@@ -602,6 +726,8 @@ void main() {
     steps: generatedSteps,
     config: config,
     needsImplementation:
-        deferredInputs.isNotEmpty || requirements.any((r) => r.secret),
+        deferredInputs.isNotEmpty ||
+        requirements.any((r) => r.secret) ||
+        usedAssets.isNotEmpty,
   );
 }

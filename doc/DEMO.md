@@ -5,23 +5,46 @@
 These screenshots show the actual local Flutter example, using only fictional
 data. They demonstrate the app under test, not a claim of native-platform support.
 
-| Screen | What to notice |
-| --- | --- |
-| ![Connected DevTools recorder](images/recorder.png) | The actual extension connected to the debug app, ready to record |
-| ![Login](images/login.png) | A normal keyed Flutter form; no per-action recorder callbacks |
-| ![Account overview](images/account.png) | A visible outcome to assert after replay |
-| ![Repeated controls](images/repeated-controls.png) | Identical labels in different ancestor scopes |
+| Screen                                               | What to notice                                                             |
+| ---------------------------------------------------- | -------------------------------------------------------------------------- |
+| ![Connected DevTools recorder](images/recorder.png)  | Earlier connected-extension capture; not a screenshot of the new M2 dialog |
+| ![Login](images/login.png)                           | A normal keyed Flutter form; no per-action recorder callbacks              |
+| ![Account overview](images/account.png)              | A visible outcome to assert after replay                                   |
+| ![Repeated controls](images/repeated-controls.png)   | Identical labels in different ancestor scopes                              |
+| ![Fixture lab](images/fixture-lab.png)               | New M2 app lab with fictional customer data, typed fields and two items    |
+| ![Narrow fixture lab](images/fixture-lab-mobile.png) | The same lab at 390px browser width, not native-mobile proof               |
 
 ## Recorded video
 
-[Watch/download the example walkthrough (WebM, 17.6 seconds)](https://github.com/anandsubbu007/patrol-code-generator/blob/main/doc/media/example-walkthrough.webm).
+[Watch/download the refreshed example walkthrough (WebM, 9.84 seconds)](https://github.com/anandsubbu007/patrol-code-generator/blob/main/doc/media/example-walkthrough.webm).
 The repository copy is `doc/media/example-walkthrough.webm`.
 
 This silent recording shows the actual debug example: entering fictional input,
-opening the account, and navigating to repeated controls. It is an **app UI
+opening the account, and loading/clearing the fixture lab. It is an **app UI
 walkthrough**, not a recording of DevTools, generation, or Patrol execution.
 Use the script below to film a full narrated end-to-end release demonstration.
 The video is excluded from the pub archive; the gallery PNGs are included.
+
+The two maintained M2 Patrol cases (`populated` and `empty`) separately passed
+real headless web replay on 2026-10-23. Their YAML, fixture files, implemented
+adapter/providers, generated steps and wrappers are under the
+[runnable M2 example](../example/README.md#m2-fixtures-and-expectations).
+This is not a new live DevTools recording -> generation proof: the fixture cases
+are manually authored and the current DevTools dialog capture remains unrefreshed.
+
+To reproduce the media with the example running at `http://localhost:8931`:
+
+```sh
+cd example
+NODE_PATH="$HOME/.pub-cache/hosted/pub.dev/patrol-4.10.0/web_runner/node_modules" \
+   node tool/record_publication_demo.cjs
+```
+
+Patrol installs Playwright dependencies during its first web run. Otherwise use
+your installed Playwright package on `NODE_PATH`; the capture script adds no
+runtime dependency to the Flutter recorder. Set `DEMO_APP_URL` for a different
+local app URL. The script replaces the app video, login/account screenshots, and
+desktop/narrow fixture images using an isolated context and fictional values.
 
 ## Short walkthrough script
 
@@ -42,6 +65,8 @@ flutter run --target patrol_test/recorder_main.dart -d chrome --print-dtd
    **Open demo account**.
 5. In DevTools, **Capture visible screen**, name it `account_overview`, and
    save. Capture is optional, not needed for code generation.
+   Also demonstrate **Add expectation**: select **Demo account is open**, choose
+   **Exact text**, review its prefilled value, and confirm it into the journey.
 6. Stop recording, review targets, and show **Journey YAML saved**. Open the
    YAML and point out `{{email}}` / `{{note}}`, not the typed values.
 7. Run the copied command:

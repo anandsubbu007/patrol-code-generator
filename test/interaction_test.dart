@@ -65,6 +65,7 @@ void main() {
             Map<String, dynamic>.from(recorder.snapshot()['selection']! as Map),
           );
           expect(target.key, 'save');
+          expect(recorder.snapshot()['selectionText'], 'Save');
           recorder.confirmExpectation(
             ExpectationSpec(kind: RecordedExpectation.visible),
           );
@@ -99,6 +100,7 @@ void main() {
       await tester.tapAt(tester.getCenter(find.text('Ready')));
       final selection = recorder.snapshot()['selection']! as Map;
       expect(selection['issue'], isNull);
+      expect(recorder.snapshot()['selectionText'], 'Ready');
       recorder.cancelSelection();
       expect(recorder.steps, isEmpty);
       expect(recorder.snapshot()['selecting'], false);
@@ -123,6 +125,7 @@ void main() {
         await tester.pump();
         await tester.tapAt(tester.getCenter(find.text('SECRET_SENTINEL')));
         expect((recorder.snapshot()['selection']! as Map)['selector'], isNull);
+        expect(recorder.snapshot()['selectionText'], isNull);
         expect(
           jsonEncode(recorder.snapshot()),
           isNot(contains('SECRET_SENTINEL')),

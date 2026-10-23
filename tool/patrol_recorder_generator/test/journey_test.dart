@@ -164,7 +164,10 @@ void main() {
       expect(output.steps, contains('Matching widgets:'));
       expect(
         () => RecordedJourney.fromYaml(
-          flow.toYaml().replaceFirst('schema_version: 4', 'schema_version: 3'),
+          flow.toYaml().replaceFirst(
+            'schema_version: $journeySchemaVersion',
+            'schema_version: 3',
+          ),
         ),
         throwsFormatException,
       );

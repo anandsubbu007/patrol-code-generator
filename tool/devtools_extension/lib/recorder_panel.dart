@@ -121,7 +121,10 @@ class _RecorderPanelState extends State<RecorderPanel> {
       expectation = await showDialog<ExpectationSpec>(
         context: context,
         barrierDismissible: false,
-        builder: (_) => ExpectationDialog(target: target),
+        builder: (_) => ExpectationDialog(
+          target: target,
+          suggestedText: _snapshot?['selectionText'] as String?,
+        ),
       );
     } finally {
       if (mounted) setState(() => _dialogOpen = false);

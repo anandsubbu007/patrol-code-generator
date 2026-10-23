@@ -77,10 +77,16 @@ class LocalWorkspaceFiles implements WorkspaceFiles {
 }
 
 class GenerationSummary {
-  const GenerationSummary(this.root, this.journeys, this.result);
+  const GenerationSummary(
+    this.root,
+    this.journeys,
+    this.result, {
+    this.selectors = const [],
+  });
   final Uri root;
   final List<GeneratedJourney> journeys;
   final ExportResult result;
+  final List<Map<String, Object?>> selectors;
 }
 
 Future<RecorderAppConfig> resolveAppBootstrap(
@@ -153,7 +159,15 @@ Future<GenerationSummary> generateProject(
   Directory project, {
   String? journey,
   String? recordingsDirectory,
+  String? selectedCase,
+  bool preview = false,
 }) async {
+  if (selectedCase != null) {
+    if (journey == null) {
+      throw const FormatException('--case requires --journey.');
+    }
+    requireIdentifier(selectedCase, 'Case ID');
+  }
   final root = Directory(await project.resolveSymbolicLinks()).uri;
   final workspace = LocalWorkspaceFiles(root);
   final source = await workspace.read(root.resolve('pubspec.yaml'));
@@ -189,6 +203,7 @@ Future<GenerationSummary> generateProject(
   final originals = <Uri, String>{};
   final outputs = <GeneratedJourney>[];
   final validationErrors = <String>[];
+  final selectors = <Map<String, Object?>>[];
   for (final uri in paths) {
     try {
       final yaml = await workspace.read(uri);
@@ -223,12 +238,34 @@ Future<GenerationSummary> generateProject(
           'Changing screenshots_directory does not update existing recordings.',
         );
       }
+      final resolved = await recording.resolveAssets(
+        workspace,
+        root,
+        recordings,
+      );
+      originals.addAll(resolved.sources);
       originals[uri] = yaml;
-      outputs.add(recording.generate(defaults, app: app));
+      outputs.addAll(
+        recording.generateCases(
+          defaults,
+          app: app,
+          assetValues: resolved.values,
+          selectedCase: selectedCase,
+        ),
+      );
+      selectors.addAll(
+        recording
+            .inspectSelectors(selectedCase: selectedCase)
+            .map((selector) => {'journey_id': recording.id, ...selector}),
+      );
     } on FormatException catch (error) {
       validationErrors.add('${uri.pathSegments.last}: ${error.message}');
     } on StateError catch (error) {
       validationErrors.add('${uri.pathSegments.last}: ${error.message}');
+    } on FileSystemException catch (error) {
+      validationErrors.add(
+        '${uri.pathSegments.last}: ${error.message} (${error.path ?? 'filesystem'})',
+      );
     }
   }
   if (validationErrors.isNotEmpty) {
@@ -249,10 +286,23 @@ Future<GenerationSummary> generateProject(
       files[entry.key] = entry.value;
     }
   }
+  if (files.keys.any((path) => originals.containsKey(root.resolve(path)))) {
+    throw StateError(
+      'Generated outputs collide with journey or asset sources. Choose a different output directory.',
+    );
+  }
+  if (preview) {
+    return GenerationSummary(
+      root,
+      outputs,
+      const ExportResult([], []),
+      selectors: selectors,
+    );
+  }
   for (final entry in originals.entries) {
     if (await workspace.read(entry.key) != entry.value) {
       throw StateError(
-        'A recording changed during generation. Stop recording and retry.',
+        'A recording or asset changed during generation. Stop recording and retry.',
       );
     }
   }
@@ -267,5 +317,5 @@ Future<GenerationSummary> generateProject(
     },
     updateGenerated: true,
   );
-  return GenerationSummary(root, outputs, result);
+  return GenerationSummary(root, outputs, result, selectors: selectors);
 }

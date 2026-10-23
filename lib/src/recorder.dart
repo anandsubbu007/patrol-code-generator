@@ -73,6 +73,7 @@ class RecorderController extends ChangeNotifier {
   int _revision = 0;
   bool _selecting = false;
   RecorderTarget? _selection;
+  String? _selectionText;
   Rect? _selectionRect;
   Timer? _selectionTimer;
 
@@ -85,6 +86,7 @@ class RecorderController extends ChangeNotifier {
     _observer?.flushScroll();
     _observer?.stop();
     _selection = null;
+    _selectionText = null;
     _selectionRect = null;
     _selecting = true;
     _selectionTimer?.cancel();
@@ -96,6 +98,7 @@ class RecorderController extends ChangeNotifier {
     if (!_selecting) return;
     _selecting = false;
     _selection = null;
+    _selectionText = null;
     _selectionRect = null;
     _selectionTimer?.cancel();
     if (_state == RecordingState.recording) _observer?.start(resume: true);
@@ -147,6 +150,42 @@ class RecorderController extends ChangeNotifier {
             issue: 'Private or ignored widgets cannot be selected.',
           )
         : tree.resolve(control!);
+    _selectionText = null;
+    final selector = _selection?.selector;
+    if (selector != null) {
+      final targets = tree.nodes
+          .where(
+            (element) =>
+                tree.matches(element, selector) &&
+                (_selection!.scope == null ||
+                    tree.nodes.any(
+                      (ancestor) =>
+                          tree.matches(ancestor, _selection!.scope!) &&
+                          element != ancestor &&
+                          _within(element, ancestor),
+                    )),
+          )
+          .toList();
+      if (targets.length == 1) {
+        final texts = tree.nodes
+            .where(
+              (element) =>
+                  _within(element, targets.single) &&
+                  element.widget is RichText &&
+                  !tree.private(element) &&
+                  !_marked<Icon>(element),
+            )
+            .toList();
+        if (texts.length == 1) {
+          final text = (texts.single.widget as RichText).text.toPlainText();
+          if (text.isNotEmpty &&
+              text.length <= 1000 &&
+              !text.contains('\uFFFC')) {
+            _selectionText = text;
+          }
+        }
+      }
+    }
     final render = control?.findRenderObject();
     final boundary = _boundaryKey.currentContext?.findRenderObject();
     _selectionRect =
@@ -185,6 +224,7 @@ class RecorderController extends ChangeNotifier {
     _steps.clear();
     _selecting = false;
     _selection = null;
+    _selectionText = null;
     _selectionRect = null;
     _selectionTimer?.cancel();
     _revision = 0;
@@ -202,6 +242,7 @@ class RecorderController extends ChangeNotifier {
     _state = RecordingState.stopped;
     _selecting = false;
     _selection = null;
+    _selectionText = null;
     _selectionRect = null;
     _selectionTimer?.cancel();
     _observer?.stop();
@@ -275,6 +316,7 @@ class RecorderController extends ChangeNotifier {
     'screenshotSupported': kDebugMode,
     'selecting': _selecting,
     'selection': _selection?.toJson(),
+    'selectionText': _selectionText,
     'capabilities': [
       'automaticTapCandidates',
       'focusedInputReferences',

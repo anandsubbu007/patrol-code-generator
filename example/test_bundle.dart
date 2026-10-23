@@ -13,7 +13,7 @@ import 'package:patrol/src/platform/mobile/patrol_runtime_ports.dart';
 import 'package:test_api/src/backend/invoker.dart';
 
 // START: GENERATED TEST IMPORTS
-import 'patrol_test/recorded_journeys/async_flow/async_flow_test.dart' as recorded_journeys__async_flow__async_flow_test;
+import 'patrol_test/recorded_journeys/m2_fixtures/cases/empty/empty_test.dart' as recorded_journeys__m2_fixtures__cases__empty__empty_test;
 // END: GENERATED TEST IMPORTS
 
 Future<void> main() async {
@@ -105,7 +105,7 @@ Future<void> main() async {
   });
 
 // START: GENERATED TEST GROUPS
-  group('recorded_journeys.async_flow.async_flow_test', recorded_journeys__async_flow__async_flow_test.main);
+  group('recorded_journeys.m2_fixtures.cases.empty.empty_test', recorded_journeys__m2_fixtures__cases__empty__empty_test.main);
 // END: GENERATED TEST GROUPS
 
   if (constants.testDiscoveryEnabled) {

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:args/args.dart';
 import 'package:patrol_recorder_generator/src/local_generation.dart';
@@ -18,6 +19,17 @@ Future<void> main(List<String> arguments) async {
       'recordings-directory',
       help: 'Override the project-relative YAML directory.',
     )
+    ..addOption('case', help: 'Generate one case of the selected --journey.')
+    ..addFlag(
+      'preview',
+      negatable: false,
+      help: 'Validate and print generated steps without writing files.',
+    )
+    ..addFlag(
+      'inspect-selectors',
+      negatable: false,
+      help: 'Validate and print effective selectors as JSON without writing files.',
+    )
     ..addFlag('help', abbr: 'h', negatable: false);
   try {
     final args = parser.parse(arguments);
@@ -36,7 +48,21 @@ Future<void> main(List<String> arguments) async {
       Directory(args['project'] as String),
       journey: args['journey'] as String?,
       recordingsDirectory: args['recordings-directory'] as String?,
+      selectedCase: args['case'] as String?,
+      preview: args['preview'] as bool || args['inspect-selectors'] as bool,
     );
+    if (args['inspect-selectors'] as bool) {
+      stdout.writeln(
+        const JsonEncoder.withIndent('  ').convert(result.selectors),
+      );
+      return;
+    }
+    if (args['preview'] as bool) {
+      for (final output in result.journeys) {
+        stdout.writeln('Preview: ${output.config.stepsPath}\n${output.steps}');
+      }
+      return;
+    }
     for (final path in result.result.written) {
       stdout.writeln('Generated: ${result.root.resolve(path).toFilePath()}');
     }

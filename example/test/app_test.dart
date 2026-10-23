@@ -4,10 +4,43 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:patrol_recorder/patrol_recorder.dart';
 import 'package:patrol_recorder_example/app.dart';
+import 'package:patrol_recorder_example/fixture_lab.dart';
 
 import '../patrol_test/demo_profiles.dart';
 
 void main() {
+  testWidgets(
+    'fixture lab applies typed local data and supports expected match counts',
+    (tester) async {
+      demoFixtures.clear();
+      addTearDown(demoFixtures.clear);
+      await tester.pumpWidget(createApp());
+      await tester.tap(find.byKey(const ValueKey('login')));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(const ValueKey('open_fixtures')));
+      await tester.tap(find.byKey(const ValueKey('open_fixtures')));
+      await tester.pumpAndSettle();
+      expect(find.text('No fixture loaded'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('seed_fixture')));
+      await tester.pumpAndSettle();
+      expect(find.text('Ada Fixture'), findsOneWidget);
+      expect(find.text('Credit: 24.50'), findsOneWidget);
+      expect(find.text('Fixture item'), findsNWidgets(2));
+      await tester.tap(find.byKey(const ValueKey('clear_fixture')));
+      await tester.pumpAndSettle();
+      expect(find.text('Fixture item'), findsNothing);
+      expect(
+        () => demoFixtures.seed(
+          {'name': 'Invalid', 'email': 'real@example.com'},
+          quantity: 1,
+          enabled: true,
+          credit: 0,
+        ),
+        throwsFormatException,
+      );
+    },
+  );
+
   testWidgets('one root wrapper automatically records the hook-free login', (
     tester,
   ) async {

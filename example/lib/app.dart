@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'showcase.dart';
 import 'async_lab.dart';
+import 'fixture_lab.dart';
 
 Widget createApp() => const DemoApp();
 
@@ -171,6 +172,16 @@ class AccountPage extends StatelessWidget {
                       ),
                     ),
                     child: const Text('Async and lazy loading'),
+                  ),
+                  FilledButton(
+                    key: const ValueKey('open_fixtures'),
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        settings: const RouteSettings(name: '/fixtures'),
+                        builder: (_) => const FixtureLabPage(),
+                      ),
+                    ),
+                    child: const Text('Fixture and expectation lab'),
                   ),
                 ],
               ),

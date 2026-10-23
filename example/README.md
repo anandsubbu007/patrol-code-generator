@@ -31,6 +31,62 @@ For a separate app installed from pub.dev, use the
 DevTools assets are included in the recorder package.
 See the [screenshots and demo walkthrough](../doc/DEMO.md).
 
+## M2 fixtures and expectations
+
+After opening the demo account, choose **Fixture and expectation lab**. The
+[page and local store](lib/fixture_lab.dart) let you load/clear a fictional customer,
+show enabled state and credit, and inspect zero or two repeated items. No network
+or authentication service is involved.
+
+The maintained [m2_fixtures.yml](patrol_recorder/m2_fixtures.yml) demonstrates:
+
+- Two independent cases, `populated` and `empty`, with stable authored step IDs.
+- JSON [customer data](patrol_recorder/assets/m2_fixtures/customer.json) and a
+  [text fixture](patrol_recorder/assets/m2_fixtures/note.txt), referenced by name.
+- String, integer, number, boolean, and JSON inputs in reusable profiles, plus a
+  per-case data override. Fixtures are manually authored, not captured input values.
+- Shared `seed` setup, an `enter_lab` group, and a key-first selector override for
+  the expanded `open_lab_open` step.
+- Exact-text assertions for the seeded data and count assertions for two/zero items.
+
+The [shared adapter](patrol_test/m2_fixture_adapter.dart) implements `applyAsset`
+and connects validated fixture content to the actual store. Both generated
+providers mix it in; these are complete implementations, not throwing TODO stubs.
+
+Run from this example directory:
+
+```sh
+dart run patrol_recorder_generator:generate --journey m2_fixtures --preview
+dart run patrol_recorder_generator:generate --journey m2_fixtures --inspect-selectors
+dart run patrol_recorder_generator:generate --journey m2_fixtures
+flutter analyze lib patrol_test/recorded_journeys/m2_fixtures patrol_test/m2_fixture_adapter.dart
+patrol test --target patrol_test/recorded_journeys/m2_fixtures/cases/populated/populated_test.dart --device chrome --web-headless
+patrol test --target patrol_test/recorded_journeys/m2_fixtures/cases/empty/empty_test.dart --device chrome --web-headless
+```
+
+The two case targets have been replayed successfully through Patrol web. Let each
+use its default profile (`demo` versus `empty`); a global demo-profile override
+changes the empty case's data and intentionally invalidates its assertions.
+Generated outputs live under
+`patrol_test/recorded_journeys/m2_fixtures/cases/<case>/`. Regeneration changes only
+the two `.g.dart` files per case, preserving the connected provider and wrapper.
+
+Asset paths are relative to the configured recordings root under `assets/`;
+this example uses `patrol_recorder/assets/m2_fixtures/`. The generator embeds
+validated text/JSON and bounds file reads to the project/recordings roots.
+Absolute/traversal/symlink paths are rejected, with a 1 MiB per-file and 10 MiB
+aggregate limit. An asset applies a fixture; it is not an upload or screenshot.
+
+To try live expectations, record a **new** journey name, open the fixture lab,
+load the sample, then choose **Add expectation** in DevTools. Tap **Ada Fixture**
+in the app and choose **Exact text**: the editable comparison field starts with
+`Ada Fixture`. Save, then stop and generate the recording. Do not re-record over
+the maintained `m2_fixtures` YAML, which contains manual reusable definitions.
+
+The refreshed [publication walkthrough](../doc/DEMO.md) shows the real app lab at
+desktop and narrow browser sizes. A narrow-browser screenshot is not a native
+mobile end-to-end support claim.
+
 ## Record -> YAML
 
 1. Open the printed real DevTools URL and enable **patrol_recorder**.
@@ -85,7 +141,8 @@ patrol_test/recorded_journeys/my_login/
 Implement the abstract getters in the user-owned input file. `loadInputs()` returns
 your implementation; the generated entrypoint passes it to
 `runRecordedJourney($, inputs)`. Initial getters throw until wired intentionally.
-No input values or expressions are evaluated from YAML.
+Recorded inputs never contain typed values. Schema 5 additionally accepts
+explicitly authored non-secret typed fixtures; arbitrary expressions are not evaluated.
 
 New scaffolds include TODOs for required input/secret wiring and bounded final
 outcome assertions. Their Dartdoc includes the journey's Patrol command and
@@ -146,8 +203,8 @@ generator. Only `.g.dart` files are regenerated. Your implementation/assertions
 are preserved; implement any new abstract getters reported by the analyzer.
 No discoverable suite file imports other discoverable tests.
 
-Legacy schema-1 and schema-2 YAML remain readable, but re-recording writes schema
-3. Old session-named PNG directories are not automatically deleted. Current captures
+Legacy schemas 1-4 remain readable, but re-recording writes schema 5.
+Old session-named PNG directories are not automatically deleted. Current captures
 reuse `<screenshots_directory>/<journey>/<name>.png`, with an adjacent hidden
 ownership marker to protect unrelated files.
 

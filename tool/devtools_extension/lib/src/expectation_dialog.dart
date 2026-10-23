@@ -2,8 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:patrol_recorder/model.dart';
 
 class ExpectationDialog extends StatefulWidget {
-  const ExpectationDialog({super.key, required this.target});
+  const ExpectationDialog({
+    super.key,
+    required this.target,
+    this.suggestedText,
+  });
   final RecorderTarget target;
+  final String? suggestedText;
 
   @override
   State<ExpectationDialog> createState() => _ExpectationDialogState();
@@ -11,13 +16,31 @@ class ExpectationDialog extends StatefulWidget {
 
 class _ExpectationDialogState extends State<ExpectationDialog> {
   final _form = GlobalKey<FormState>();
-  final _value = TextEditingController();
+  late final TextEditingController _textValue;
+  final _countValue = TextEditingController(text: '1');
+  TextEditingController get _value =>
+      _kind == RecordedExpectation.count ? _countValue : _textValue;
   final _timeout = TextEditingController(text: '10000');
   RecordedExpectation _kind = RecordedExpectation.visible;
 
   @override
+  void initState() {
+    super.initState();
+    final selector = widget.target.selector;
+    _textValue = TextEditingController(
+      text:
+          widget.suggestedText ??
+          (selector?.kind == SelectorKind.text ||
+                  selector?.kind == SelectorKind.richText
+              ? selector!.value
+              : ''),
+    );
+  }
+
+  @override
   void dispose() {
-    _value.dispose();
+    _textValue.dispose();
+    _countValue.dispose();
     _timeout.dispose();
     super.dispose();
   }

@@ -1,6 +1,6 @@
 name: patrol_recorder
-description: Lightweight debug Flutter interaction recording in DevTools with reference-only YAML journeys for editable Patrol tests.
-version: 0.0.2
+description: Lightweight debug Flutter recording with DevTools widget selection, YAML journeys, and editable Patrol tests.
+version: 0.0.3
 repository: https://github.com/anandsubbu007/patrol-code-generator
 issue_tracker: https://github.com/anandsubbu007/patrol-code-generator/issues
 topics:
@@ -24,9 +24,13 @@ screenshots:
     path: doc/images/account.png
   - description: Repeated controls with ancestor-scoped selectors.
     path: doc/images/repeated-controls.png
+  - description: M2 fixture lab showing fictional customer data and exact-text/count outcomes.
+    path: doc/images/fixture-lab.png
+  - description: Fixture lab at a narrow browser viewport, not a native-platform claim.
+    path: doc/images/fixture-lab-mobile.png
 environment:
   sdk: ^3.13.0
-  flutter: '>=3.47.0'
+  flutter: ">=3.47.0"
 dependencies:
   flutter:
     sdk: flutter

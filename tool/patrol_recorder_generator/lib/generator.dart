@@ -7,3 +7,4 @@ library;
 export 'src/file_export.dart';
 export 'src/generator.dart';
 export 'src/journey.dart';
+export 'src/authored_step.dart';

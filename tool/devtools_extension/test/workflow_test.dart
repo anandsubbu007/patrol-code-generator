@@ -127,6 +127,63 @@ Future<void> start(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets(
+    'exact text is prefilled and edits survive changing expectation kinds',
+    (tester) async {
+      ExpectationSpec? saved;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () async {
+                  saved = await showDialog<ExpectationSpec>(
+                    context: context,
+                    builder: (_) => ExpectationDialog(
+                      target: RecorderTarget(key: 'title'),
+                      suggestedText: 'Account overview',
+                    ),
+                  );
+                },
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      Future<void> choose(String label) async {
+        await tester.tap(
+          find.byType(DropdownButtonFormField<RecordedExpectation>),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(label).last);
+        await tester.pumpAndSettle();
+      }
+
+      await choose('Exact text');
+      final text = find.widgetWithText(TextFormField, 'Expected text');
+      expect(
+        tester.widget<TextFormField>(text).controller!.text,
+        'Account overview',
+      );
+      await tester.enterText(text, 'Custom expected text');
+      await choose('Match count');
+      final count = find.widgetWithText(TextFormField, 'Expected count');
+      expect(tester.widget<TextFormField>(count).controller!.text, '1');
+      await tester.enterText(count, '2');
+      await choose('Exact text');
+      expect(
+        tester.widget<TextFormField>(text).controller!.text,
+        'Custom expected text',
+      );
+      await tester.tap(find.text('Save expectation'));
+      await tester.pumpAndSettle();
+      expect(saved!.value, 'Custom expected text');
+    },
+  );
+
   testWidgets('expectation form validates values on a narrow viewport', (
     tester,
   ) async {

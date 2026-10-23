@@ -15,7 +15,7 @@ DevTools Record -> patrol_recorder/<journey>.yml
 
 No recording calls are needed in application button/text-field callbacks.
 Recording setup stays in a test-only entrypoint, not application `lib/`.
-This is an **experimental 0.0.2 package**, not a universal or production-certified
+This is an **experimental 0.0.3 package**, not a universal or production-certified
 recorder. Tested: Flutter 3.47.7 / Dart 3.13.5, DevTools 2.60.0, Patrol 4.10.0,
 Patrol CLI 4.8.0, Node 22.23.4, Flutter web.
 
@@ -28,6 +28,8 @@ Patrol CLI 4.8.0, Node 22.23.4, Flutter web.
   `patrol_recorder_generator` companion.
 - Keep your input providers, setup, and outcome assertions when regenerating.
 - Capture visible Flutter screens with masking for marked private regions.
+- Pick a widget in DevTools and save bounded expectations with editable text suggestions.
+- Author schema-5 cases, typed fixture profiles, setup/groups, assets, and selector overrides.
 
 The recorder declares compatibility with all Flutter targets: Android, iOS, web,
 Linux, macOS, and Windows. Its runtime uses Flutter APIs and has no native plugin
@@ -52,21 +54,52 @@ These are real captures of the local example using fictional data, not mockups.
 
 ![Repeated controls requiring scoped selectors](doc/images/repeated-controls.png)
 
+![M2 fixture and expectation lab with fictional data](doc/images/fixture-lab.png)
+
 See the [demo walkthrough](doc/DEMO.md) for media, capture instructions, and the
 record -> YAML -> generate -> replay script. Screenshots are optional; a video
 is not a pub.dev publication requirement.
-The [17-second example video](https://github.com/anandsubbu007/patrol-code-generator/blob/main/doc/media/example-walkthrough.webm)
-shows the app UI only, not a complete recording/replay verification.
+The refreshed [10-second example video](https://github.com/anandsubbu007/patrol-code-generator/blob/main/doc/media/example-walkthrough.webm)
+shows login and the fixture lab in the real app. It is an app walkthrough, not
+a video of DevTools, generation, or Patrol execution.
+
+## Runnable M2 example
+
+The [fixture lab](example/lib/fixture_lab.dart) is available after **Open demo
+account** under **Fixture and expectation lab**. Load/clear a fictional customer
+manually, or replay the maintained [schema-5 journey](example/patrol_recorder/m2_fixtures.yml).
+Its `populated` and `empty` cases apply real JSON/text fixtures through a
+[user-owned adapter](example/patrol_test/m2_fixture_adapter.dart), then verify
+exact text, credit, enabled state, and repeated-item counts.
+
+After repository setup, run from `example/`:
+
+```sh
+dart run patrol_recorder_generator:generate --journey m2_fixtures --preview
+dart run patrol_recorder_generator:generate --journey m2_fixtures --inspect-selectors
+dart run patrol_recorder_generator:generate --journey m2_fixtures
+patrol test --target patrol_test/recorded_journeys/m2_fixtures/cases/populated/populated_test.dart --device chrome --web-headless
+patrol test --target patrol_test/recorded_journeys/m2_fixtures/cases/empty/empty_test.dart --device chrome --web-headless
+```
+
+Both checked-in case providers are implemented and both Patrol web replays passed.
+The cases use their own default profile; do not force `RECORDER_PROFILE=demo`
+onto the `empty` case. Regeneration preserves the maintained providers/wrappers.
+See the [M2 walkthrough](example/README.md#m2-fixtures-and-expectations) for file
+locations, safe asset paths, types, setup/groups, overrides, and expectation picking.
+Advanced fixtures/cases are authored in stopped YAML; they are not auto-recorded
+from private input values or created by a DevTools case editor.
 
 ## Install from pub.dev
 
-The following hosted setup applies **after 0.0.2 is published**.
-Until then, use the [repository setup](#setup-and-record).
+Recorder 0.0.2 is already published. The following setup targets the upcoming
+0.0.3 release and matching generator; use the [repository setup](#setup-and-record)
+until those release artifacts are available.
 
 In your Flutter app:
 
 ```sh
-flutter pub add --dev patrol_recorder:^0.0.2 patrol_recorder_generator:^0.0.1 patrol:4.10.0
+flutter pub add --dev patrol_recorder:^0.0.3 patrol_recorder_generator:^0.0.1 patrol:4.10.0
 dart pub global activate patrol_cli 4.8.0
 ```
 
@@ -77,7 +110,7 @@ put **only the recorder** in regular dependencies instead:
 dependencies:
   flutter:
     sdk: flutter
-  patrol_recorder: ^0.0.2
+  patrol_recorder: ^0.0.3
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -215,8 +248,12 @@ Review its stable selector, choose an expectation and timeout, then click
 **Save expectation**. Cancel adds nothing. Selection expires after two minutes;
 private/ignored regions and unresolved targets cannot be confirmed. Rebuild the
 DevTools extension and restart the app when updating to protocol 6.
+**Exact text** is prefilled when the selected target contains exactly one public
+text leaf. The suggestion remains editable; switching expectation kinds preserves
+your text and count independently. Editable values and private content are never
+used as suggestions. **Match count** starts at one for the uniquely selected target.
 
-Schema 4 also accepts manually authored assertions (edit only after stopping):
+Schemas 4 and 5 accept manually authored assertions (edit only after stopping):
 
 ```yaml
 - id: account_ready
@@ -242,8 +279,10 @@ means absent at a check, not continuously absent over the whole timeout.
 Missing, unsupported, or misplaced expectations fail validation rather than
 being skipped. Count assertions may deliberately match multiple widgets.
 
-Asset steps, multiple cases/groups, and typed fixture/setup expansion remain
-planned M2 work; this picker authors expectations only.
+Schema 5 also supports fixture `asset` steps, multiple cases, reusable groups/setup,
+typed input profiles, and selector overrides. See the
+[authored journey guide](tool/patrol_recorder_generator/README.md#authored-journeys).
+The picker authors expectations only; edit advanced journeys after stopping.
 
 Using the **same journey name replaces the previous recorder-owned YAML**.
 That is the normal way to update a flow. No manual YAML edits are required.
@@ -284,9 +323,11 @@ steps:
 
 See the actual [recorded YAML example](example/patrol_recorder/yaml_login.yml).
 Every text action uses a whole-string `{{name}}` reference, including secrets.
-There are no raw input defaults, passwords, arbitrary expressions, or coordinate
-selectors in YAML. `secret: true` classifies a reference; it is not a value.
-New recordings use schema 3; the generator continues to read schemas 1 and 2.
+The recorder does not capture typed field values. Schema 5 permits manually
+authored, non-secret fixture values with explicit types. Password/secret literals,
+arbitrary expressions, and coordinate selectors are not supported.
+`secret: true` classifies a reference; it is not a value.
+New recordings use schema 5; the generator continues to read schemas 1-4.
 
 Targets prefer keys, then semantics identifiers/labels, field labels/text, then
 supported public widget types. Repeated targets can use a unique ancestor
@@ -527,7 +568,7 @@ After publication, for a test-only recording entrypoint:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  patrol_recorder: ^0.0.2
+  patrol_recorder: ^0.0.3
   patrol_recorder_generator: ^0.0.1
   patrol: 4.10.0
 
@@ -737,8 +778,9 @@ private content, and authenticated VM Service/DTD URLs before sharing.
 
 ## Publication status
 
-The recorder's **0.0.1** release is published; **0.0.2** adds declared Flutter
-platform compatibility. The generator remains a separate package at **0.0.1**.
+The recorder's **0.0.2** release is already published. **0.0.3** is the next
+release, adding explicit expectations, schema-5 tooling/examples, and refreshed
+documentation/media. The generator remains a separate package at **0.0.1**.
 Follow the [release checklist](doc/PUBLISHING.md) to validate its hosted dependency
 and prepare its release independently.
 The example and extension source app intentionally remain unpublished.
