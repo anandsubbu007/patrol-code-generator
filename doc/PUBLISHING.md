@@ -1,6 +1,6 @@
 # Publishing Patrol Recorder and its generator
 
-## 0.0.5 release plan
+## 0.0.6 release plan
 
 <!-- publication-history:start -->
 Publication status checked on 2026-10-23: recorder **0.0.4** is present in both
@@ -13,14 +13,21 @@ Recorder 0.0.4 remains published and immutable; this release intentionally
 advances both packages to 0.0.5.
 <!-- publication-history:end -->
 
-- Version 0.0.5 omits a platform allowlist rather than declaring Web-only or
+- Version 0.0.6 omits a platform allowlist rather than declaring Web-only or
   claiming every Flutter target. The package uses Flutter APIs and is not a
   standalone Dart package; end-to-end behavior beyond Web still needs testing.
-- This checkout prepares `patrol_recorder` **0.0.5** and
-  `patrol_recorder_generator` **0.0.5**. Publish the recorder first, then the
+- This checkout prepares `patrol_recorder` **0.0.6** and
+  `patrol_recorder_generator` **0.0.6**. Publish the recorder first, then the
   generator. Do not describe either package as hosted until verified on
   pub.dev.
-- The generator dependency uses `patrol_recorder: '>=0.0.5 <0.1.0'`. This
+- This release lowers recorder/generator minimums to Dart >=3.8.0 <4.0.0
+  and Flutter >=3.32.0, including Dart 3.11. Generator formatter/analyzer
+  ranges permit SDK-compatible resolution. Validate minimum-SDK and
+  downgraded dependencies as well as the pinned release toolchain.
+  The extension source requires Flutter >=3.35.0 / Dart >=3.9.0; consumers
+  receive compiled assets. Older-SDK package checks are not full DevTools
+  recording/Patrol replay proof.
+- The generator dependency uses `patrol_recorder: '>=0.0.6 <0.1.0'`. This
   admits compatible patch releases but excludes older versions (including
   0.0.4) and 0.1.0.
 - Consumer instructions use the same range for both Patrol Recorder packages.
@@ -36,7 +43,7 @@ pushing a version tag authorizes automatic publication.
 ## Automated releases from a version tag or branch
 
 The [release workflow](../.github/workflows/release.yml) accepts only stable
-`vMAJOR.MINOR.PATCH` refs, for example `v0.0.5`. GitHub's trigger glob selects
+`vMAJOR.MINOR.PATCH` refs, for example `v0.0.6`. GitHub's trigger glob selects
 candidate refs; the Python helper then validates the exact semantic version
 (no leading zeroes, prerelease suffix, or extra path components).
 
@@ -69,14 +76,14 @@ After reviewing the code and release notes, choose **one** route:
 
 ```sh
 # Tag route: push an immutable release tag from the reviewed source.
-git tag v0.0.5
-git push origin v0.0.5
+git tag v0.0.6
+git push origin v0.0.6
 ```
 
 ```sh
 # Branch route: the workflow prepares a commit and creates the matching tag.
-git switch -c v0.0.5
-git push -u origin v0.0.5
+git switch -c v0.0.6
+git push -u origin v0.0.6
 ```
 
 Merely creating a local ref does not start GitHub Actions; push it to GitHub.
@@ -140,23 +147,23 @@ running both at once, let main CI finish before pushing the tag. The branch
 route also has a lightweight preparation run followed by the tag publication
 run; only the tag run performs the full release validation.
 
-### Retrying a canceled 0.0.5 release
+### Retrying a canceled 0.0.6 release
 
 First check both package pages: cancellation does not undo an upload. If
-0.0.5 is not hosted, it can still be released. Do not force-move a version tag
+0.0.6 is not hosted, it can still be released. Do not force-move a version tag
 that already exists on GitHub. Rerunning an existing tag workflow uses the
 workflow at that tag's commit, not newer workflow fixes on `main`.
 
 For the updated workflows to apply to a new tag, commit the release preparation
 and workflow changes first, then create the tag from that commit. If an older
-`v0.0.5` tag already exists, use the local interactive publisher from the
-reviewed, clean 0.0.5 checkout instead of moving the tag:
+`v0.0.6` tag already exists, use the local interactive publisher from the
+reviewed, clean 0.0.6 checkout instead of moving the tag:
 
 ```sh
 python3 tool/publish_packages.py
 ```
 
-Answer No to incrementing versions when both manifests already say 0.0.5.
+Answer No to incrementing versions when both manifests already say 0.0.6.
 The publisher requires separate confirmation for each missing package and
 skips a recorder upload that already succeeded. Initial generator publication
 still needs manual account authentication before its OIDC setup is available.
@@ -164,7 +171,7 @@ still needs manual account authentication before its OIDC setup is available.
 The updater can be previewed locally without uploading:
 
 ```sh
-python3 tool/prepare_release.py v0.0.5 --from-ref
+python3 tool/prepare_release.py v0.0.6 --from-ref
 python3 -m unittest discover -s tool/tests -v
 ```
 
@@ -188,8 +195,8 @@ The example and extension source app use a path dependency to the root for
 development; the published packages have no local path dependencies.
 The generator uses a local `pubspec_overrides.yaml` for checkout development,
 excluded from its archive. Its release manifest depends on hosted recorder
-`>=0.0.5 <0.1.0`; archive validation must omit the local override and follow
-recorder 0.0.5 publication.
+`>=0.0.6 <0.1.0`; archive validation must omit the local override and follow
+recorder 0.0.6 publication.
 
 ## Required owner decisions
 
@@ -399,7 +406,7 @@ flutter pub publish --dry-run
 flutter pub publish
 ```
 
-Wait until `https://pub.dev/packages/patrol_recorder/versions/0.0.5` is
+Wait until `https://pub.dev/packages/patrol_recorder/versions/0.0.6` is
 available. Confirm the hosted pubspec, metadata, README, screenshots, and
 platform list before proceeding.
 
@@ -407,7 +414,7 @@ The root `.pubignore` deliberately excludes `tool/` from the runtime archive.
 Pub inherits ancestor ignore rules, so publishing the generator directly from
 that nested directory can incorrectly produce an empty archive. Stage only its
 release files in a separate temporary directory, without copying local overrides.
-After recorder 0.0.5 is confirmed hosted:
+After recorder 0.0.6 is confirmed hosted:
 
 ```sh
 cd tool/patrol_recorder_generator
@@ -433,7 +440,7 @@ the generator, **not** the recorder. The generator itself is a dev dependency
 of the consuming app. Do not move the CLI's dependencies into its own
 `dev_dependencies`: those would not be resolved for consumers.
 The generator dry run must resolve hosted `patrol_recorder` in
-`>=0.0.5 <0.1.0` without overrides. A successful local override-based check is
+`>=0.0.6 <0.1.0` without overrides. A successful local override-based check is
 not proof of a public install.
 
 ## After both uploads

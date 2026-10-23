@@ -1,3 +1,13 @@
+## 0.0.6
+
+- Lower the recorder minimum to Dart 3.8 / Flutter 3.32, allowing apps on
+  Dart 3.11 without upgrading to Dart 3.13.
+- Broaden companion generator analyzer/formatter constraints so dependency
+  resolution can select releases compatible with the app's SDK.
+- Generate enabled-state checks using semantics APIs shared by the minimum
+  and current Flutter SDKs.
+- Update installation, compatibility, and release documentation for 0.0.6.
+
 ## 0.0.5
 
 - Add coordinated version-tag releases, optional release-branch preparation,

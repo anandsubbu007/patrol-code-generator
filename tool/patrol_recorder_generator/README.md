@@ -6,14 +6,14 @@ providers and test wrappers. It does not record interactions or execute tests.
 
 ## Install
 
-For the 0.0.5 release, publish `patrol_recorder` before this package. After both
+For the 0.0.6 release, publish `patrol_recorder` before this package. After both
 are available on pub.dev, add them with compatible version ranges:
 
 ```sh
-flutter pub add --dev 'patrol_recorder:>=0.0.5 <0.1.0' 'patrol_recorder_generator:>=0.0.5 <0.1.0' 'patrol:4.10.0'
+flutter pub add --dev 'patrol_recorder:>=0.0.6 <0.1.0' 'patrol_recorder_generator:>=0.0.6 <0.1.0' 'patrol:4.10.0'
 ```
 
-The lower bound prevents resolving the older 0.0.3 recorder; the upper bound
+The lower bound selects the SDK-flexible 0.0.6 release; the upper bound
 avoids automatically accepting a potentially breaking 0.1.0 release.
 
 For repository development, follow the root
@@ -26,7 +26,11 @@ import recorder APIs, only the recorder needs to be a regular app dependency.
 The runtime recorder depends only on Flutter; formatter, analyzer, YAML, and
 argument parsing dependencies belong to this tooling package.
 
-Requires Dart >=3.13.0 and Flutter >=3.47.0 through the recorder dependency.
+Requires **Dart >=3.8.0 <4.0.0 and Flutter >=3.32.0** through the recorder
+dependency, including apps on Dart 3.11. Formatter `^3.1.2` and analyzer
+`>=8.0.0 <15.0.0` let Pub choose SDK-compatible tooling instead of forcing
+Dart 3.13. Keep your app's own lockfile; after changing the package ranges, run
+`flutter pub upgrade patrol_recorder patrol_recorder_generator`.
 The tested local toolchain is Flutter 3.47.7 / Dart 3.13.5. Patrol's web test
 tooling uses Node.js; Node 22.23.4 completed the recorded clean web setup.
 An earlier clean Playwright browser installation stalled under Node 26.12.0.
@@ -235,7 +239,7 @@ asset contents rather than silently skipping the step.
 
 The local `pubspec_overrides.yaml` resolves `patrol_recorder` from the checkout.
 It is excluded from the published archive. The release manifest uses hosted
-dependency `patrol_recorder: '>=0.0.5 <0.1.0'`, which supplies the expectation
+dependency `patrol_recorder: '>=0.0.6 <0.1.0'`, which supplies the expectation
 transport types. After publishing the recorder, verify this generator package
 resolves without overrides before publishing it.
 The repository root excludes `tool/` from its runtime archive, and Pub

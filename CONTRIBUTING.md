@@ -7,7 +7,11 @@ limits rather than assuming support from Flutter or Patrol's platform coverage.
 ## Requirements
 
 - Flutter 3.47.7 / Dart 3.13.5 is the pinned project toolchain. Package
-  constraints require Flutter >=3.47.0 and Dart >=3.13.0.
+  and example constraints allow Flutter >=3.32.0 / Dart >=3.8.0 <4.0.0,
+  including Dart 3.11. Building the extension from source requires
+  Flutter >=3.35.0 / Dart >=3.9.0 <4.0.0; consumers use bundled assets.
+  Keep the minimum-SDK and Dart 3.11 checks passing, including generator
+  dependency downgrades. The recorded full Web workflow still uses 3.47.7.
 - Node.js is used by Patrol's web test tooling. Node 22.23.4 completed the
   recorded clean web setup. An earlier clean Playwright browser installation
   stalled under Node 26.12.0; a cached replay on that host is not clean-setup
@@ -16,7 +20,7 @@ limits rather than assuming support from Flutter or Patrol's platform coverage.
 
 The source example intentionally uses local path dependencies and a local
 generator override. It is not a clean hosted consumer test. For the planned
-0.0.5 release, publish the recorder before the generator, then verify both
+0.0.6 release, publish the recorder before the generator, then verify both
 package pages before running the full hosted consumer workflow without path
 overrides. Never present a local-path replay as hosted-package validation.
 
@@ -48,8 +52,8 @@ recorder constraint and matching documentation ranges, and adds changelog
 placeholders. It does not publish or commit. Run a preview first:
 
 ```sh
-python3 tool/prepare_release.py 0.0.5
-python3 tool/prepare_release.py 0.0.5 --apply
+python3 tool/prepare_release.py 0.0.7
+python3 tool/prepare_release.py 0.0.7 --apply
 ```
 
 The helper accepts stable `MAJOR.MINOR.PATCH` versions greater than the current
@@ -84,7 +88,7 @@ the recorder version to be hosted for generator dependency resolution.
 Run formatting checks and package tests from the repository root:
 
 ```sh
-dart format --output=none --set-exit-if-changed \
+dart format --language-version=latest --output=none --set-exit-if-changed \
   lib test \
   tool/patrol_recorder_generator/lib tool/patrol_recorder_generator/bin tool/patrol_recorder_generator/test \
   tool/devtools_extension/lib tool/devtools_extension/test tool/devtools_extension/tool \
@@ -111,6 +115,12 @@ flutter test
 
 These checks cover the recorder package, generator CLI, DevTools extension, and
 example widgets. They do not prove a live recording session or Patrol replay.
+Run repository formatting with the pinned release SDK and
+`--language-version=latest` to keep one formatting style independent of each
+package's older SDK floor. CI also runs package checks on Flutter 3.32.0 /
+Dart 3.8.0 and Flutter 3.41.0 / Dart 3.11.0. The minimum job downgrades only
+`analyzer` and `dart_style`; globally downgrading transitive dependencies can
+select old packages whose published SDK ranges incorrectly admit newer SDKs.
 
 ## Validate the example end to end
 
@@ -126,7 +136,7 @@ The checked-in example uses local dependencies. For release validation, also
 create a clean consumer app with hosted dependencies and no `path` entries or
 `dependency_overrides`, then follow the recording, stop, generation,
 user-owned-input, assertion, replay, and regeneration steps in the root README.
-Until the 0.0.5 packages are published, hosted validation is expected to fail
+Until the 0.0.6 packages are published, hosted validation is expected to fail
 and must not be represented as a passing release check.
 
 ## Submit a bug report or pull request

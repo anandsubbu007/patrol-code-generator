@@ -318,14 +318,14 @@ packages:
       path: "../.."
       relative: true
     source: path
-    version: "0.0.5"
+    version: "0.0.6"
   patrol_recorder_generator:
     dependency: "direct main"
     description:
       path: "../patrol_recorder_generator"
       relative: true
     source: path
-    version: "0.0.5"
+    version: "0.0.6"
   plugin_platform_interface:
     dependency: transitive
     description:
@@ -604,5 +604,5 @@ packages:
     source: hosted
     version: "2.2.4"
 sdks:
-  dart: ">=3.13.5 <4.0.0"
+  dart: ">=3.13.0 <4.0.0"
   flutter: ">=3.44.0"

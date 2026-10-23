@@ -1,3 +1,12 @@
+## 0.0.6
+
+- Support Dart >=3.8.0 <4.0.0 and Flutter >=3.32.0 through recorder 0.0.6.
+- Allow dart_style ^3.1.2 and analyzer >=8.0.0 <15.0.0 rather than requiring
+  the latest Dart 3.13-only tooling; retain compatible patch upgrades.
+- Keep generated enabled-state checks compatible with Flutter 3.32 semantics,
+  with execution coverage for enabled, disabled, and unspecified states.
+- Update installation and compatibility guidance for the coordinated release.
+
 ## 0.0.5
 
 - Add coordinated tag/branch release automation and hosted publication checks.

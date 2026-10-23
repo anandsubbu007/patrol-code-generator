@@ -70,6 +70,11 @@ void main() {
             target: RecorderTarget(key: 'status'),
             expectation: ExpectationSpec(kind: RecordedExpectation.exists),
           ),
+          RecordedStep(
+            id: 'tap_status',
+            action: RecordedAction.tap,
+            target: RecorderTarget(key: 'status'),
+          ),
         ],
         app: RecorderAppConfig(
           appImport: 'package:patrol_recorder_example/app.dart',
@@ -84,6 +89,22 @@ void main() {
         generated.steps +
             r'''
 void main() {
+  testWidgets('generated enabled checks support old and new semantics APIs', (tester) async {
+    final semantics = tester.ensureSemantics();
+    try {
+      await tester.pumpWidget(Directionality(textDirection: TextDirection.ltr,
+        child: Column(children: [
+          Semantics(enabled: false, child: const Text('Disabled', key: ValueKey('disabled'))),
+          Semantics(enabled: true, child: const Text('Enabled', key: ValueKey('enabled'))),
+          const Text('No enabled state', key: ValueKey('unspecified')),
+        ])));
+      expect(_recorderEnabled(find.byKey(const ValueKey('disabled')).evaluate().single), isFalse);
+      expect(_recorderEnabled(find.byKey(const ValueKey('enabled')).evaluate().single), isTrue);
+      expect(_recorderEnabled(find.byKey(const ValueKey('unspecified')).evaluate().single), isTrue);
+    } finally {
+      semantics.dispose();
+    }
+  });
   testWidgets('bounded generated expectations', (tester) async {
     var ready = false;
     late StateSetter update;
@@ -283,6 +304,12 @@ void main() {
       expect(output.steps, contains('milliseconds: 25000'));
       expect(output.steps, contains('SettlePolicy.noSettle'));
       expect(output.steps, contains('_recorderEnabled'));
+      expect(
+        output.steps,
+        contains('hasFlag(ui.SemanticsFlag.hasEnabledState)'),
+      );
+      expect(output.steps, isNot(contains('flagsCollection')));
+      expect(output.steps, isNot(contains('ui.Tristate')));
       expect(output.steps, isNot(contains('pumpAndSettle')));
       expect(output.steps, isNot(contains('tapAt')));
       expect(output.steps, contains('ValueKey'));

@@ -19,6 +19,10 @@ concurrency:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        flutter: ['3.41.0', '3.47.7']
     steps:
       - uses: actions/checkout@v4
 
@@ -28,12 +32,13 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: 3.47.7
+          flutter-version: ${{ matrix.flutter }}
           cache: true
 
       - name: Check Dart formatting
+        if: matrix.flutter == '3.47.7'
         run: |
-          dart format --output=none --set-exit-if-changed \
+          dart format --language-version=latest --output=none --set-exit-if-changed \
             lib test \
             tool/patrol_recorder_generator/lib tool/patrol_recorder_generator/bin tool/patrol_recorder_generator/test \
             tool/devtools_extension/lib tool/devtools_extension/test tool/devtools_extension/tool \
@@ -50,7 +55,7 @@ jobs:
         run: |
           flutter pub get
           flutter analyze
-          flutter test
+          flutter test --timeout 2m
           dart run patrol_recorder_generator:generate --help
 
       - name: Test and validate DevTools extension
@@ -68,3 +73,32 @@ jobs:
           flutter pub get
           flutter analyze
           flutter test
+
+  minimum-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.32.0
+          cache: true
+      - name: Test minimum recorder and example SDK
+        run: |
+          flutter pub get
+          flutter analyze lib test
+          flutter test
+          cd example
+          flutter pub get
+          flutter analyze
+          flutter test
+      - name: Test minimum SDK and oldest generator dependencies
+        working-directory: tool/patrol_recorder_generator
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test --timeout 2m
+          dart run patrol_recorder_generator:generate --help
+          flutter pub downgrade analyzer dart_style
+          flutter analyze
+          flutter test --timeout 2m

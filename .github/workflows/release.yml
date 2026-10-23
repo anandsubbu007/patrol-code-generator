@@ -78,7 +78,7 @@ jobs:
         run: python3 -m unittest discover -s tool/tests -v
       - name: Validate all components and build packaged extension
         run: |
-          dart format --output=none --set-exit-if-changed \
+          dart format --language-version=latest --output=none --set-exit-if-changed \
             lib test \
             tool/patrol_recorder_generator/lib tool/patrol_recorder_generator/bin tool/patrol_recorder_generator/test \
             tool/devtools_extension/lib tool/devtools_extension/test tool/devtools_extension/tool \

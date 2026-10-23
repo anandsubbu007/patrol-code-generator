@@ -11,6 +11,7 @@ import 'complex_ui_inputs.g.dart';
 const recordedJourneyName = "Animated and nested UI journey";
 const recordedJourneyTag = "recorder_complex_ui_exercise";
 
+/// Replays recorded actions; callers must assert their expected business outcomes.
 Future<void> runRecordedJourney(
   PatrolIntegrationTester $,
   JourneyInputs inputs,
@@ -534,6 +535,14 @@ bool _recorderEnabled(Element element) {
   var enabled = true;
   void inspect(Element e) {
     final w = e.widget;
+    final semantics = e.findRenderObject()?.debugSemantics;
+    // hasFlag is retained for Flutter 3.32 compatibility.
+    final disabled =
+        semantics != null &&
+        // ignore: deprecated_member_use
+        semantics.hasFlag(ui.SemanticsFlag.hasEnabledState) &&
+        // ignore: deprecated_member_use
+        !semantics.hasFlag(ui.SemanticsFlag.isEnabled);
     if (w is ButtonStyleButton &&
             w.onPressed == null &&
             w.onLongPress == null ||
@@ -542,13 +551,7 @@ bool _recorderEnabled(Element element) {
         w is Checkbox && w.onChanged == null ||
         w is TextField && (w.enabled == false || w.readOnly) ||
         w is EditableText && w.readOnly ||
-        e
-                .findRenderObject()
-                ?.debugSemantics
-                ?.getSemanticsData()
-                .flagsCollection
-                .isEnabled ==
-            ui.Tristate.isFalse) {
+        disabled) {
       enabled = false;
     }
   }

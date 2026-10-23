@@ -7,6 +7,10 @@ YAML schema/configuration is shared with the development-only
 duplicated in the UI. The runtime recorder has no generator dependencies.
 The extension source app depends on the generator to build its compiled assets;
 users of the recorder receive those assets without this source dependency.
+For recorder/generator 0.0.6, this source app allows Dart >=3.9.0 <4.0.0
+and Flutter >=3.35.0 (its dropdowns use `initialValue`). The distributed
+recorder and generator allow Dart >=3.8.0 / Flutter >=3.32.0 because consumers
+do not compile the extension source. Dart 3.11 is within both ranges.
 
 ```sh
 flutter pub get

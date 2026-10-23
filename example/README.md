@@ -23,6 +23,10 @@ flutter run --target patrol_test/recorder_main.dart -d chrome --print-dtd
 Tested with Flutter 3.47.7, Dart 3.13.5, DevTools 2.60.0, Node 22.23.4 and Patrol
 4.10.0 / CLI 4.8.0. Recorder and generator are separate dev dependencies.
 The normal [main entrypoint](lib/main.dart) does not start the recorder.
+The 0.0.6 recorder/generator and this example allow Flutter >=3.32.0 with
+Dart >=3.8.0 <4.0.0, including Dart 3.11. Building the extension from source
+requires Flutter >=3.35.0 / Dart >=3.9.0. Package/widget tests on older SDKs
+are separate from the full Web replay evidence above.
 
 This repository example uses local recorder/generator paths and a recorder
 override so both tools share the checkout rather than resolving a hosted copy.

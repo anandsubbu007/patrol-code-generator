@@ -29,6 +29,7 @@ migrate_working_dir/
 .flutter-plugins-dependencies
 **/build/
 /coverage/
+local_doc/
 
 # The compiled DevTools extension is shipped with the package.
 !/extension/
