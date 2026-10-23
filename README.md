@@ -17,7 +17,7 @@ No recording calls are needed in application button/text-field callbacks.
 Recording setup stays in a test-only entrypoint, not application `lib/`.
 This is an **experimental project**, not a universal or production-certified
 recorder. The recorder is published on pub.dev; this checkout targets recorder
-and generator 0.0.4. Check both package pages before installing. The tested local environment was Flutter
+and generator 0.0.5. Check both package pages before installing. The tested local environment was Flutter
 3.47.7 / Dart 3.13.5, DevTools 2.60.0, Patrol 4.10.0, Patrol CLI 4.8.0, Node
 22.23.4, and Flutter web.
 
@@ -97,12 +97,12 @@ from private input values or created by a DevTools case editor.
 
 ## Install from pub.dev
 
-For the 0.0.4 release, publish the recorder first and the generator second.
-After both package pages list 0.0.4 or a later compatible version, add
+For the 0.0.5 release, publish the recorder first and the generator second.
+After both package pages list 0.0.5 or a later compatible version, add
 them with a range that accepts patch releases without allowing 0.1.0:
 
 ```sh
-flutter pub add --dev 'patrol_recorder:>=0.0.4 <0.1.0' 'patrol_recorder_generator:>=0.0.4 <0.1.0' 'patrol:4.10.0'
+flutter pub add --dev 'patrol_recorder:>=0.0.5 <0.1.0' 'patrol_recorder_generator:>=0.0.5 <0.1.0' 'patrol:4.10.0'
 dart pub global activate patrol_cli 4.8.0
 ```
 
@@ -113,15 +113,15 @@ put **only the recorder** in regular dependencies instead:
 dependencies:
   flutter:
     sdk: flutter
-  patrol_recorder: '>=0.0.4 <0.1.0'
+  patrol_recorder: '>=0.0.5 <0.1.0'
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  patrol_recorder_generator: '>=0.0.4 <0.1.0'
+  patrol_recorder_generator: '>=0.0.5 <0.1.0'
   patrol: 4.10.0
 ```
 
-The ranges deliberately start at 0.0.4, so they do not silently install the
+The ranges deliberately start at 0.0.5, so they do not silently install the
 older recorder 0.0.3 or resolve the generator before its first publication.
 Run `flutter pub get` after adding them and confirm the resolved versions.
 
@@ -594,7 +594,7 @@ Avoid concurrent recording/generation/editing of the same journey.
 
 ## Use in your own app
 
-The following dependency setup is for after recorder and generator 0.0.4 are
+The following dependency setup is for after recorder and generator 0.0.5 are
 published. Check both package pages first; a hosted recorder alone does not
 make the complete workflow installable from pub.dev.
 
@@ -602,8 +602,8 @@ make the complete workflow installable from pub.dev.
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  patrol_recorder: '>=0.0.4 <0.1.0'
-  patrol_recorder_generator: '>=0.0.4 <0.1.0'
+  patrol_recorder: '>=0.0.5 <0.1.0'
+  patrol_recorder_generator: '>=0.0.5 <0.1.0'
   patrol: 4.10.0
 
 patrol:
@@ -814,13 +814,13 @@ request guidance.
 
 ## Publication status
 
-This checkout prepares recorder and generator **0.0.4** for publication. The
+This checkout prepares recorder and generator **0.0.5** for publication. The
 release order is recorder first, then generator; after both uploads, confirm
 the hosted package pages and run the clean consumer workflow. The repository
 example uses local path dependencies; that validates local development, not
 hosted installation.
 Version 0.0.3 remains an immutable published release with its original
-documentation and six declared Flutter targets. Version 0.0.4 does not declare
+documentation and six declared Flutter targets. Version 0.0.5 does not declare
 a platform allowlist; end-to-end verification remains Web-only. See the
 [release checklist](doc/PUBLISHING.md) for the ordered release and validation
 steps.

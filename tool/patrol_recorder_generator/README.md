@@ -6,11 +6,11 @@ providers and test wrappers. It does not record interactions or execute tests.
 
 ## Install
 
-For the 0.0.4 release, publish `patrol_recorder` before this package. After both
+For the 0.0.5 release, publish `patrol_recorder` before this package. After both
 are available on pub.dev, add them with compatible version ranges:
 
 ```sh
-flutter pub add --dev 'patrol_recorder:>=0.0.4 <0.1.0' 'patrol_recorder_generator:>=0.0.4 <0.1.0' 'patrol:4.10.0'
+flutter pub add --dev 'patrol_recorder:>=0.0.5 <0.1.0' 'patrol_recorder_generator:>=0.0.5 <0.1.0' 'patrol:4.10.0'
 ```
 
 The lower bound prevents resolving the older 0.0.3 recorder; the upper bound
@@ -235,7 +235,7 @@ asset contents rather than silently skipping the step.
 
 The local `pubspec_overrides.yaml` resolves `patrol_recorder` from the checkout.
 It is excluded from the published archive. The release manifest uses hosted
-dependency `patrol_recorder: '>=0.0.4 <0.1.0'`, which supplies the expectation
+dependency `patrol_recorder: '>=0.0.5 <0.1.0'`, which supplies the expectation
 transport types. After publishing the recorder, verify this generator package
 resolves without overrides before publishing it.
 The repository root excludes `tool/` from its runtime archive, and Pub

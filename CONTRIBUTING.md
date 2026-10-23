@@ -16,7 +16,7 @@ limits rather than assuming support from Flutter or Patrol's platform coverage.
 
 The source example intentionally uses local path dependencies and a local
 generator override. It is not a clean hosted consumer test. For the planned
-0.0.4 release, publish the recorder before the generator, then verify both
+0.0.5 release, publish the recorder before the generator, then verify both
 package pages before running the full hosted consumer workflow without path
 overrides. Never present a local-path replay as hosted-package validation.
 
@@ -126,7 +126,7 @@ The checked-in example uses local dependencies. For release validation, also
 create a clean consumer app with hosted dependencies and no `path` entries or
 `dependency_overrides`, then follow the recording, stop, generation,
 user-owned-input, assertion, replay, and regeneration steps in the root README.
-Until the 0.0.4 packages are published, hosted validation is expected to fail
+Until the 0.0.5 packages are published, hosted validation is expected to fail
 and must not be represented as a passing release check.
 
 ## Submit a bug report or pull request

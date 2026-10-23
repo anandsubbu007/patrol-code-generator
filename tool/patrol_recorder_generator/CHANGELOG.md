@@ -1,4 +1,4 @@
-## Unreleased
+## 0.0.5
 
 - Add coordinated tag/branch release automation and hosted publication checks.
 - Keep generated-code execution tests runnable from release staging with an

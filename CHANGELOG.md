@@ -1,9 +1,11 @@
-## Unreleased
+## 0.0.5
 
 - Add coordinated version-tag releases, optional release-branch preparation,
   pub.dev OIDC setup guidance, and release-helper regression checks.
 - Wait for pub.dev's dependency-resolution index before proceeding to the
   generator after recorder publication.
+- Avoid duplicate push CI for release tags and version branches; cancel
+  superseded ordinary CI runs.
 
 ## 0.0.4
 
