@@ -3,7 +3,7 @@ library;
 
 import 'dart:convert';
 
-const recorderProtocolVersion = 6;
+const recorderProtocolVersion = 7;
 const recorderServiceMethod = 'ext.patrol_recorder.command';
 const recorderEventKind = 'patrol_recorder.changed';
 
@@ -263,9 +263,13 @@ class RecordedStep {
       );
     }
     if (action == RecordedAction.scrollUntilVisible) {
-      if (scrollView?.selector == null || scrollDirection == null) {
+      // Without a viewport selector, replay discovers the Scrollable from the
+      // resolved destination target, so one of the two must be identified.
+      if (scrollDirection == null ||
+          scrollView != null && scrollView!.selector == null ||
+          scrollView == null && target.selector == null) {
         throw const FormatException(
-          'A scroll needs an identified viewport and direction.',
+          'A scroll needs a direction and an identified viewport or destination.',
         );
       }
     } else if (scrollView != null || scrollDirection != null) {

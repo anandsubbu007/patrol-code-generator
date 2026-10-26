@@ -25,6 +25,32 @@ class _ScrollTrace {
   }
 }
 
+/// Consecutive scrolls of one view with no action in between.
+///
+/// Replay only needs the net movement toward the user's objective, so
+/// back-and-forth searching collapses into one step, and a following tap inside
+/// the view becomes the destination.
+class _ScrollSession {
+  _ScrollSession(_ScrollTrace trace, this.before)
+    : state = trace.state,
+      element = trace.element,
+      view = trace.view,
+      start = trace.start,
+      axis = trace.axis;
+  final ScrollableState state;
+  final Element element;
+  final RecorderTarget view;
+  final double start;
+  final AxisDirection axis;
+
+  /// Last step recorded before this session began.
+  final String? before;
+
+  /// Step currently representing this session, if any.
+  String? stepId;
+  RecordedScrollDirection? direction;
+}
+
 extension _ScrollObservation on _RecorderObserver {
   Element _scrollElement(ScrollableState state) {
     final element = state.context as Element;
@@ -198,26 +224,30 @@ extension _ScrollObservation on _RecorderObserver {
     );
   }
 
-  RecordedScrollDirection _direction(_ScrollTrace trace) {
-    final axis = trace.delta >= 0 ? trace.axis : flipAxisDirection(trace.axis);
+  RecordedScrollDirection _direction(AxisDirection axis, double delta) {
+    final moved = delta >= 0 ? axis : flipAxisDirection(axis);
     return RecordedScrollDirection.values.singleWhere(
-      (d) => d.name == axis.name,
+      (d) => d.name == moved.name,
     );
   }
 
-  RecorderTarget _visibleAnchor(_ScrollTrace trace) {
+  RecorderTarget _visibleAnchor(
+    Element view,
+    AxisDirection axis,
+    RecordedScrollDirection direction,
+  ) {
     final tree = _TargetTree(root!);
-    final viewport = trace.element.findRenderObject();
+    final viewport = view.findRenderObject();
     if (!tree.complete || viewport is! RenderBox || !viewport.hasSize) {
       return RecorderTarget(
         issue: 'Scroll destination cannot be inspected yet. Wait for layout/data, then tap the desired keyed item.',
       );
     }
     final rect = Offset.zero & viewport.size;
-    final horizontal = axisDirectionToAxis(trace.axis) == Axis.horizontal;
+    final horizontal = axisDirectionToAxis(axis) == Axis.horizontal;
     final forward =
-        _direction(trace) == RecordedScrollDirection.down ||
-        _direction(trace) == RecordedScrollDirection.right;
+        direction == RecordedScrollDirection.down ||
+        direction == RecordedScrollDirection.right;
     final candidates = <(Element, double, bool)>[];
     final loading = tree.nodes
         .where(
@@ -227,7 +257,7 @@ extension _ScrollObservation on _RecorderObserver {
         )
         .toList();
     for (final element in tree.nodes) {
-      if (element == trace.element || !_within(element, trace.element)) {
+      if (element == view || !_within(element, view)) {
         continue;
       }
       final keyed = element.widget.key.runtimeType == (ValueKey<String>);
@@ -286,42 +316,96 @@ extension _ScrollObservation on _RecorderObserver {
       );
       return;
     }
-    if (trace.delta.abs() < 1 || root == null) return;
-    if (trace.view.issue != null) {
-      recorder._problem('Scrolling view needs a key. ${trace.view.issue}');
+    if (root == null) return;
+    final steps = recorder._steps;
+    final lastId = steps.isEmpty ? null : steps.last.id;
+    var session = _scrollSession;
+    final continues =
+        session != null &&
+        identical(session.state, state) &&
+        (session.stepId == null
+            ? lastId == session.before
+            : lastId == session.stepId);
+    if (!continues) {
+      if (trace.delta.abs() < 1) return;
+      session = _scrollSession = _ScrollSession(trace, lastId);
+    }
+    final net = trace.start + trace.delta - session.start;
+    if (net.abs() < 1) {
+      // Scrolling away and back again needs no replay.
+      if (session.stepId != null) {
+        steps.removeLast();
+        session.stepId = null;
+        recorder._changed();
+      }
       return;
     }
-    if (!trace.element.mounted) {
+    if (!session.element.mounted) {
       recorder._problem(
         'Scrolling view was disposed before its target was identified. Wait for loading to finish and tap a stable item.',
       );
       return;
     }
-    final target = _visibleAnchor(trace);
-    final direction = _direction(trace);
-    final last = recorder._steps.isEmpty ? null : recorder._steps.last;
-    if (last?.action == RecordedAction.scrollUntilVisible &&
-        last!.scrollView!.identity == trace.view.identity &&
-        last.scrollDirection == direction) {
-      recorder._steps[recorder._steps.length - 1] = RecordedStep(
-        id: last.id,
-        action: last.action,
+    final direction = session.direction = _direction(session.axis, net);
+    final view = session.view.issue == null ? session.view : null;
+    final target = _visibleAnchor(session.element, session.axis, direction);
+    if (view == null && target.issue != null) {
+      // A later tap inside this view can still identify the destination.
+      _putSessionStep(
+        session,
+        RecordedAction.unsupported,
+        RecorderTarget(
+          issue:
+              'Scroll needs review: the scrolling view has no unique key and no visible item identifies the destination. '
+              'Tap the item you scrolled to, or add key: const ValueKey<String>("unique_list_id") to the ScrollView '
+              'or a ValueKey to the destination item, then re-record. Coordinate drags were not generated.',
+        ),
+        null,
+        null,
+        trace.source,
+      );
+      return;
+    }
+    _putSessionStep(
+      session,
+      RecordedAction.scrollUntilVisible,
+      target,
+      view,
+      direction,
+      trace.source,
+    );
+  }
+
+  void _putSessionStep(
+    _ScrollSession session,
+    RecordedAction action,
+    RecorderTarget target,
+    RecorderTarget? view,
+    RecordedScrollDirection? direction,
+    ObservationSource source,
+  ) {
+    final steps = recorder._steps;
+    if (session.stepId != null) {
+      steps[steps.length - 1] = RecordedStep(
+        id: session.stepId!,
+        action: action,
         target: target,
-        source: trace.source,
-        scrollView: trace.view,
+        source: source,
+        scrollView: view,
         scrollDirection: direction,
       );
       recorder._changed();
-    } else {
-      recorder._record(
-        RecordedAction.scrollUntilVisible,
-        target,
-        source: trace.source,
-        scrollView: trace.view,
-        scrollDirection: direction,
-      );
+      return;
     }
-    _lastScrollElement = trace.element;
+    final count = steps.length;
+    recorder._record(
+      action,
+      target,
+      source: source,
+      scrollView: view,
+      scrollDirection: direction,
+    );
+    if (steps.length > count) session.stepId = steps.last.id;
   }
 
   void flushScroll() {
@@ -338,27 +422,31 @@ extension _ScrollObservation on _RecorderObserver {
     }
   }
 
+  /// Uses an action inside the scrolled view as the scroll's destination.
   void anchorRecentScroll(RecorderTarget target, Element? element) {
-    final last = recorder._steps.isEmpty ? null : recorder._steps.last;
-    final view = _lastScrollElement;
-    if (last?.action != RecordedAction.scrollUntilVisible ||
+    final session = _scrollSession;
+    final steps = recorder._steps;
+    if (session == null ||
+        session.stepId == null ||
+        session.direction == null ||
+        steps.isEmpty ||
+        steps.last.id != session.stepId ||
         target.issue != null ||
         element == null ||
         !element.mounted ||
-        view == null ||
-        !view.mounted ||
-        !_within(element, view)) {
+        !session.element.mounted ||
+        !_within(element, session.element)) {
       return;
     }
-    recorder._steps[recorder._steps.length - 1] = RecordedStep(
-      id: last!.id,
-      action: last.action,
+    steps[steps.length - 1] = RecordedStep(
+      id: session.stepId!,
+      action: RecordedAction.scrollUntilVisible,
       target: target,
-      source: last.source,
-      scrollView: last.scrollView,
-      scrollDirection: last.scrollDirection,
+      source: steps.last.source,
+      scrollView: session.view.issue == null ? session.view : null,
+      scrollDirection: session.direction,
     );
     recorder._changed();
-    _lastScrollElement = null;
+    _scrollSession = null;
   }
 }

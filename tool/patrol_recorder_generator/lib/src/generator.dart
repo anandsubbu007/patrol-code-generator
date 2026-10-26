@@ -522,20 +522,10 @@ await \$.pump();
         };
         final waiting = step.action == RecordedAction.scrollUntilVisible
             ? '''
-final view${index + 1} = ${finder(step.scrollView!)};
-await \$(view${index + 1}).waitUntilVisible(timeout: $timeout);
-expect(view${index + 1}, findsOneWidget, reason: 'Scroll view is ambiguous. Add a unique ValueKey to the ScrollView.');
-final scrollable${index + 1} = _recorderScrollables(view${index + 1});
-expect(scrollable${index + 1}, findsOneWidget, reason: 'Cannot identify one primary Scrollable. Add a key to the intended ScrollView.');
-final axis${index + 1} = \$.tester.widget<Scrollable>(scrollable${index + 1}).axisDirection;
-expect(axis${index + 1} == AxisDirection.left || axis${index + 1} == AxisDirection.right,
-  ${step.scrollDirection == RecordedScrollDirection.left || step.scrollDirection == RecordedScrollDirection.right},
-  reason: 'The scroll axis changed. Re-record this layout.');
-final distance${index + 1} = (\$.tester.getSize(view${index + 1}).${step.scrollDirection == RecordedScrollDirection.left || step.scrollDirection == RecordedScrollDirection.right ? 'width' : 'height'} * 0.6).clamp(20.0, 400.0).toDouble();
-await \$.tester.scrollUntilVisible($name,
-  axis${index + 1} == AxisDirection.${step.scrollDirection!.name} ? distance${index + 1} : -distance${index + 1},
-  scrollable: scrollable${index + 1}, maxScrolls: ${config.maxScrolls},
-  duration: const Duration(milliseconds: 250), continuous: true);
+await _recorderScrollTo(\$.tester, $name,
+  view: ${step.scrollView == null ? 'null' : finder(step.scrollView!)},
+  direction: AxisDirection.${step.scrollDirection!.name},
+  maxScrolls: ${config.maxScrolls}, timeout: $timeout, stepId: ${dartLiteral(step.id)});
 await \$($name).waitUntilVisible(timeout: $timeout);
 '''
             : step.action == RecordedAction.tapText
@@ -697,6 +687,115 @@ Finder _recorderScrollables(Finder view) {
     });
     return inside;
   }, description: 'primary Scrollable of the recorded view');
+}
+
+/// Scrollables that may reveal the target, largest first.
+List<ScrollableState> _recorderScrollCandidates(Finder? view, Axis axis) {
+  final elements = view == null
+      ? find.byElementPredicate((element) {
+          if (element.widget is! Scrollable || ModalRoute.of(element)?.isCurrent == false) {
+            return false;
+          }
+          var text = false;
+          element.visitAncestorElements((parent) { text = parent.widget is EditableText; return !text; });
+          return !text;
+        }).evaluate()
+      : _recorderScrollables(view).evaluate();
+  double area(ScrollableState state) {
+    final box = state.context.findRenderObject();
+    return box is RenderBox && box.hasSize ? box.size.width * box.size.height : 0;
+  }
+  return [
+    for (final element in elements)
+      if ((element as StatefulElement).state case final ScrollableState state
+          when axisDirectionToAxis(state.axisDirection) == axis && area(state) > 0)
+        state,
+  ]..sort((a, b) => area(b).compareTo(area(a)));
+}
+
+/// Slowly scrolls [state] toward [direction] until [target] is built. Device independent:
+/// each step is a fraction of the viewport, and the sweep stops at the scroll extent.
+Future<bool> _recorderSweep(WidgetTester tester, ScrollableState state, Finder target,
+    AxisDirection direction, int maxScrolls) async {
+  var idle = 0;
+  for (var i = 0; i < maxScrolls; i++) {
+    if (target.evaluate().isNotEmpty) return true;
+    if (!state.mounted) return false;
+    final position = state.position;
+    final forward = state.axisDirection == direction;
+    final atEdge = forward
+        ? position.pixels >= position.maxScrollExtent
+        : position.pixels <= position.minScrollExtent;
+    if (atEdge) {
+      // Paged lists load more items after reaching the end.
+      if (++idle > 10) return false;
+      await tester.pump(const Duration(milliseconds: 100));
+      continue;
+    }
+    idle = 0;
+    final box = state.context.findRenderObject()! as RenderBox;
+    final vertical = axisDirectionToAxis(state.axisDirection) == Axis.vertical;
+    final step = ((vertical ? box.size.height : box.size.width) * 0.3).clamp(40.0, 300.0).toDouble();
+    final delta = forward ? step : -step;
+    final move = switch (state.axisDirection) {
+      AxisDirection.down => Offset(0, -delta),
+      AxisDirection.up => Offset(0, delta),
+      AxisDirection.right => Offset(-delta, 0),
+      AxisDirection.left => Offset(delta, 0),
+    };
+    final before = position.pixels;
+    await tester.dragFrom(box.localToGlobal(box.size.center(Offset.zero)), move);
+    await tester.pump(const Duration(milliseconds: 100));
+    if (state.mounted && (state.position.pixels - before).abs() < 1) {
+      // The drag was absorbed (overlay, nested view or custom gesture); scroll programmatically.
+      final next = (before + delta).clamp(state.position.minScrollExtent, state.position.maxScrollExtent);
+      state.position.jumpTo(next.toDouble());
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+  }
+  return target.evaluate().isNotEmpty;
+}
+
+/// Brings [target] into view: the recorded objective, not recorded coordinates.
+///
+/// Built targets use [WidgetTester.ensureVisible]. Otherwise the recorded view
+/// (or every current-route Scrollable on the recorded axis when the view has no
+/// key) is scrolled slowly toward [direction], then back, until the target is built.
+Future<void> _recorderScrollTo(WidgetTester tester, Finder target,
+    {required Finder? view, required AxisDirection direction, required int maxScrolls,
+    required Duration timeout, required String stepId}) async {
+  final clock = Stopwatch()..start();
+  var waited = Duration.zero;
+  final tried = <ScrollableState>{};
+  while (true) {
+    if (target.evaluate().isNotEmpty) {
+      await tester.ensureVisible(target.first);
+      await tester.pump();
+      return;
+    }
+    final states = view != null && view.evaluate().length != 1
+        ? const <ScrollableState>[]
+        : _recorderScrollCandidates(view, axisDirectionToAxis(direction))
+            .where((state) => !tried.contains(state)).toList();
+    if (states.isNotEmpty) {
+      final state = states.first;
+      tried.add(state);
+      if (!await _recorderSweep(tester, state, target, direction, maxScrolls)) {
+        await _recorderSweep(tester, state, target, flipAxisDirection(direction), maxScrolls);
+      }
+      continue;
+    }
+    if (clock.elapsed >= timeout || waited >= timeout) {
+      throw TestFailure('\$stepId: target not found after scrolling \${tried.length} view(s) toward '
+        '\${direction.name} and back. Target: \${target.toString(describeSelf: true)} '
+        'Scroll view: \${view?.toString(describeSelf: true) ?? 'auto-detected'} '
+        '(matches: \${view?.evaluate().length ?? '-'}). Add a unique ValueKey to the destination/ScrollView, '
+        'check the fixture data, or raise recorder_config.max_scrolls/wait_timeout_ms.');
+    }
+    // Data or the view may still be loading.
+    await tester.pump(const Duration(milliseconds: 50));
+    waited += const Duration(milliseconds: 50);
+  }
 }
 ''' : ''}
 ''');

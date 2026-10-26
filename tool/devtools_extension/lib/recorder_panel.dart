@@ -500,7 +500,7 @@ class _RecorderPanelState extends State<RecorderPanel> {
                 step.target.issue ??
                     '${step.target.toJson()}'
                         '${step.text == null ? '' : '\nInline link: ${step.text}'}'
-                        '${step.scrollView == null ? '' : '\nScroll ${step.scrollDirection!.name} in ${step.scrollView!.toJson()}'}'
+                        '${step.scrollDirection == null ? '' : '\nScroll ${step.scrollDirection!.name} in ${step.scrollView?.toJson() ?? 'the Scrollable containing the target'}'}'
                         '${step.expectation == null ? '' : '\nExpect: ${step.expectation!.toJson()}'}'
                         '${step.input == null ? '' : '\nInput: {{${step.input}}}${step.secret ? ' (secret)' : ''}'}',
               ),

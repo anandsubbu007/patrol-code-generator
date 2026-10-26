@@ -288,10 +288,20 @@ void main() {
             action: RecordedAction.longPress,
             target: RecorderTarget(key: 'hold'),
           ),
+          // An unkeyed scroll view: replay discovers it from the destination.
+          RecordedStep(
+            id: 'step_0004',
+            action: RecordedAction.scrollUntilVisible,
+            target: RecorderTarget(key: 'item_90'),
+            scrollDirection: RecordedScrollDirection.up,
+          ),
         ],
       );
+      expect(flow.toYaml(), isNot(contains('scroll_view: null')));
       final parsed = RecordedJourney.fromYaml(flow.toYaml());
       expect(parsed.steps[1].scrollView!.key, 'items');
+      expect(parsed.steps[3].scrollView, isNull);
+      expect(parsed.steps[3].scrollDirection, RecordedScrollDirection.up);
       expect(parsed.steps.first.text, 'Terms');
       final output = parsed.generate(
         ExportConfig(waitTimeoutMs: 25000, maxScrolls: 80),
@@ -299,7 +309,15 @@ void main() {
       );
       expect(output.steps, contains('find.textRange.ofSubstring'));
       expect(output.steps, contains('tapOnText'));
-      expect(output.steps, contains('scrollUntilVisible'));
+      expect(output.steps, contains('_recorderScrollTo('));
+      expect(
+        output.steps,
+        contains('view: find.byKey(const ValueKey<String>("items"))'),
+      );
+      expect(output.steps, contains('view: null'));
+      expect(output.steps, contains('direction: AxisDirection.up'));
+      expect(output.steps, contains('ensureVisible'));
+      expect(output.steps, isNot(contains('continuous: true')));
       expect(output.steps, contains('maxScrolls: 80'));
       expect(output.steps, contains('milliseconds: 25000'));
       expect(output.steps, contains('SettlePolicy.noSettle'));

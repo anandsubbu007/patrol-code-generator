@@ -121,6 +121,12 @@ For either route, the tag job:
 5. Stages the generator outside the checkout without local overrides,
    resolves the hosted recorder, analyzes/tests the staged package, then
    dry-runs and publishes it. It verifies hosted availability afterward.
+   API visibility alone does not guarantee Flutter can resolve the new version.
+   Both CI and interactive publishing retry staged `flutter pub get` every ten
+   seconds for up to ten additional minutes, but only when Pub reports that
+   the generator's recorder constraint matches no versions. Each failure is
+   logged; other dependency errors stop immediately. Validation and generator
+   publication start only after real hosted dependency resolution succeeds.
    The two generated-code execution tests use the checked-out example through
    `PATROL_RECORDER_TEST_EXAMPLE`; its dependencies must be set up first. This
    fixture is not a hosted consumer app, while the staged generator's own
@@ -132,6 +138,11 @@ local overrides. Already-hosted versions are skipped, so rerunning a failed
 tag job can finish a partial release without republishing immutable packages.
 Concurrency serializes repeated runs for the same ref and never cancels
 an upload mid-run. A completed upload is not rolled back if a later step fails.
+Rerunning an existing tag uses the scripts committed at that tag, not fixes
+subsequently merged to the default branch. Do not move a published release tag;
+if it predates a release-helper fix, use the updated interactive publishing
+helper from a clean checkout of the same package version to finish the partial
+release, or prepare a new coordinated version.
 
 ### Avoiding duplicate workflow runs
 

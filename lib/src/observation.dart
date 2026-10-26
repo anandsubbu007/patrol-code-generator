@@ -26,6 +26,36 @@ const _widgetTypes = <String, Type>{
   'SingleChildScrollView': SingleChildScrollView,
 };
 
+/// Widgets that handle a tap/press themselves, enabled or not.
+bool _interactive(Widget widget) => switch (widget) {
+  ButtonStyleButton() ||
+  IconButton() ||
+  FloatingActionButton() ||
+  Switch() ||
+  Checkbox() ||
+  ListTile() ||
+  SwitchListTile() ||
+  CheckboxListTile() ||
+  DropdownButton() ||
+  PopupMenuButton() ||
+  TextField() ||
+  EditableText() => true,
+  InkResponse w =>
+    w.onTap != null ||
+        w.onLongPress != null ||
+        w.onDoubleTap != null ||
+        w.onTapDown != null,
+  GestureDetector w =>
+    w.onTap != null ||
+        w.onTapUp != null ||
+        w.onTapDown != null ||
+        w.onLongPress != null ||
+        w.onDoubleTap != null ||
+        w.onSecondaryTap != null,
+  Semantics w => w.properties.onTap != null || w.properties.onLongPress != null,
+  _ => false,
+};
+
 bool _within(Element element, Element ancestor) {
   if (identical(element, ancestor)) return true;
   var found = false;
@@ -159,17 +189,74 @@ class _TargetTree {
     }
   }
 
+  /// Keyed wrappers that own [control], innermost first.
+  ///
+  /// A wrapper owns the control when it contains no other interactive widget
+  /// and a tap at its center lands on the control, so its key replays the same
+  /// action (for example `AppButton(key: ...)` building `Padding(InkWell(...))`).
+  List<Element> owners(Element control) {
+    final render = control.findRenderObject();
+    if (render is! RenderBox || !render.attached || !render.hasSize) {
+      return const [];
+    }
+    final bounds = MatrixUtils.transformRect(
+      render.getTransformTo(null),
+      Offset.zero & render.size,
+    ).inflate(0.5);
+    final others = [
+      for (final e in nodes)
+        if (_interactive(e.widget) && !_within(e, control)) e,
+    ];
+    final result = <Element>[];
+    control.visitAncestorElements((ancestor) {
+      if (identical(ancestor, root) ||
+          ancestor.widget is Scrollable ||
+          ancestor.widget is Navigator ||
+          ancestor.widget is Overlay) {
+        return false;
+      }
+      // Interactive ancestors of the control are on the hit path, not rivals.
+      if (others.any(
+        (e) =>
+            !identical(e, ancestor) &&
+            _within(e, ancestor) &&
+            !_within(control, e),
+      )) {
+        return false;
+      }
+      if (_key(ancestor) == null && _semantics(ancestor, true) == null) {
+        return true;
+      }
+      final box = ancestor.findRenderObject();
+      if (box is RenderBox &&
+          box.attached &&
+          box.hasSize &&
+          bounds.contains(box.localToGlobal(box.size.center(Offset.zero)))) {
+        result.add(ancestor);
+      }
+      return true;
+    });
+    return result;
+  }
+
   RecorderTarget resolve(
     Element control, {
     bool secret = false,
     bool rootOnly = false,
+    Element? Function(Element)? controlOf,
   }) {
     if (!complete) {
       return RecorderTarget(issue: 'Target discovery exceeded 10000 elements.');
     }
     final local = rootOnly
         ? <Element>[control]
-        : nodes.where((e) => _within(e, control)).toList();
+        : nodes.where((e) {
+            if (!_within(e, control)) return false;
+            if (controlOf == null || e == control) return true;
+            // A nested control (e.g. a trailing IconButton) is a different action.
+            final owner = controlOf(e);
+            return owner == null || identical(owner, control);
+          }).toList();
     // Transparent keyed wrappers identify the same render target, not a whole page.
     control.visitAncestorElements((e) {
       if (e.widget is Semantics ||
@@ -179,6 +266,11 @@ class _TargetTree {
       }
       return false;
     });
+    if (controlOf != null) {
+      for (final owner in owners(control)) {
+        if (!local.contains(owner)) local.add(owner);
+      }
+    }
     final choices =
         <(Element, RecorderSelector)>[
           for (final e in local)
@@ -272,7 +364,7 @@ class _RecorderObserver {
   bool _active = false;
   int _epoch = 0;
   final _scrolls = <ScrollableState, _ScrollTrace>{};
-  Element? _lastScrollElement;
+  _ScrollSession? _scrollSession;
   bool _flushingScroll = false;
 
   Element? get root {
@@ -311,7 +403,7 @@ class _RecorderObserver {
       trace.dispose();
     }
     _scrolls.clear();
-    _lastScrollElement = null;
+    _scrollSession = null;
     _detachEditor();
     _semantics?.dispose();
     _semantics = null;
@@ -475,8 +567,11 @@ class _RecorderObserver {
       // Background/focus-dismissal taps are not application actions.
       final target = control == null
           ? null
-          : _TargetTree(root!)
-                .resolve(control, secret: _marked<RecorderSensitive>(control));
+          : _TargetTree(root!).resolve(
+              control,
+              secret: _marked<RecorderSensitive>(control),
+              controlOf: _control,
+            );
       _pointers[event.pointer] = _PendingPointer(
         event,
         target,
@@ -583,7 +678,11 @@ class _RecorderObserver {
       if (node?.getSemanticsData().hasAction(ui.SemanticsAction.tap) == true) {
         _action(
           RecordedAction.tap,
-          tree.resolve(element, secret: _marked<RecorderSensitive>(element)),
+          tree.resolve(
+            element,
+            secret: _marked<RecorderSensitive>(element),
+            controlOf: _control,
+          ),
           element,
           source: ObservationSource.semanticsAction,
         );
@@ -595,7 +694,11 @@ class _RecorderObserver {
         event.type == ui.SemanticsAction.longPress
             ? RecordedAction.longPress
             : RecordedAction.tap,
-        tree.resolve(control, secret: _marked<RecorderSensitive>(control)),
+        tree.resolve(
+          control,
+          secret: _marked<RecorderSensitive>(control),
+          controlOf: _control,
+        ),
         control,
         source: ObservationSource.semanticsAction,
       );

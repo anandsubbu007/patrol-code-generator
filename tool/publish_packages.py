@@ -117,6 +117,44 @@ def run(command: list[str], *, cwd: Path, env: dict[str, str] | None = None) -> 
     return subprocess.run(command, cwd=cwd, env=env, check=False).returncode == 0
 
 
+def resolve_generator_dependencies(cwd: Path, version: str) -> None:
+    for attempt in range(61):
+        print("\n$ flutter pub get", flush=True)
+        result = subprocess.run(
+            ["flutter", "pub", "get"],
+            cwd=cwd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            check=False,
+        )
+        print(result.stdout, end="", flush=True)
+        if result.returncode == 0:
+            return
+        output = " ".join(result.stdout.split())
+        if not re.search(
+            r"Because patrol_recorder_generator depends on patrol_recorder "
+            r".+? which doesn't match any versions[,.]",
+            output,
+        ):
+            raise RuntimeError(
+                f"Staged generator dependency resolution failed (exit {result.returncode}); "
+                "this is not a recorder propagation error. No generator was published."
+            )
+        if attempt < 60:
+            print(
+                f"Waiting for Flutter to resolve hosted {RECORDER_NAME} {version} "
+                f"(attempt {attempt + 1}/61); retrying in 10 seconds...",
+                flush=True,
+            )
+            time.sleep(10)
+    raise RuntimeError(
+        f"Flutter still cannot resolve hosted {RECORDER_NAME} {version} after "
+        "ten minutes of retries. No generator was published. Check pub.dev and "
+        "rerun the release; do not re-upload the recorder or downgrade its constraint."
+    )
+
+
 def generator_test_environment() -> dict[str, str]:
     return {
         **os.environ,
@@ -278,13 +316,7 @@ def main() -> int:
         with tempfile.TemporaryDirectory(prefix="patrol-recorder-generator-release-") as temp:
             staged = Path(temp)
             stage_generator(staged)
-            if not run(["flutter", "pub", "get"], cwd=staged):
-                print(
-                    "Staged generator dependency resolution failed. Ensure the "
-                    "recorder version is hosted; no generator was published.",
-                    file=sys.stderr,
-                )
-                return 1
+            resolve_generator_dependencies(staged, version)
             for command in (
                 ["flutter", "analyze"],
                 ["flutter", "test"],

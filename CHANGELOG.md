@@ -1,3 +1,15 @@
+## Unreleased
+
+- Attribute taps to the enclosing interactive widget and prefer its key, or the
+  key of a wrapper that owns only that control, over visible text. Text remains
+  the fallback. Keys of nested controls are no longer used for the outer action.
+- Record scrolling as an objective: back-and-forth scrolls collapse into one net
+  step, scrolls that return to the start are dropped, and a following tap
+  becomes the destination. An unkeyed scroll view no longer blocks recording
+  when the destination can be identified.
+- Runtime protocol 7: scroll steps may omit the scroll view when the
+  destination target is resolved.
+
 ## 0.0.6
 
 - Lower the recorder minimum to Dart 3.8 / Flutter 3.32, allowing apps on

@@ -278,7 +278,7 @@ Flutter app. The selection tap does not activate the control or record a tap.
 Review its stable selector, choose an expectation and timeout, then click
 **Save expectation**. Cancel adds nothing. Selection expires after two minutes;
 private/ignored regions and unresolved targets cannot be confirmed. Rebuild the
-DevTools extension and restart the app when updating to protocol 6.
+DevTools extension and restart the app when updating to protocol 7.
 **Exact text** is prefilled when the selected target contains exactly one public
 text leaf. The suggestion remains editable; switching expectation kinds preserves
 your text and count independently. Editable values and private content are never
@@ -361,7 +361,14 @@ arbitrary expressions, and coordinate selectors are not supported.
 New recordings use schema 5; the generator continues to read schemas 1-4.
 
 Targets prefer keys, then semantics identifiers/labels, field labels/text, then
-supported public widget types. Repeated targets can use a unique ancestor
+supported public widget types. A tap on text or an icon is attributed to the
+enclosing interactive widget (`onTap`/`onPressed`/`onLongPress`), and that
+widget's key is used. Keys on wrappers are used too, for example
+`AppButton(key: ...)` building `Padding(InkWell(...))`, when the wrapper
+contains no other interactive widget and its center lands on the tapped
+control. Keys of nested controls (such as a trailing `IconButton` in a
+`ListTile`) are never used for the outer action. Text is used only when no key
+identifies the action. Repeated targets can use a unique ancestor
 `within` scope. Ambiguous actions retain a review reason rather than selecting
 `.first` or an index. The generated test asserts a single match before acting.
 
@@ -714,7 +721,7 @@ Do not assume arbitrary app-specific initialization can be inferred automaticall
 | Symptom                                | Action                                                                                                                                                                                |
 | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Extension missing/unavailable          | Build/copy/validate extension assets; run the debug recording entrypoint; enable the real DevTools extension                                                                          |
-| Protocol mismatch                      | Restart the recording app and reload rebuilt DevTools assets; runtime protocol is 6, new YAML schema is 5                                                                             |
+| Protocol mismatch                      | Restart the recording app and reload rebuilt DevTools assets; runtime protocol is 7, new YAML schema is 5                                                                             |
 | No destination                         | Refresh authorized projects using a Flutter/IDE DTD session; never use an unrestricted daemon                                                                                         |
 | YAML NOT UP TO DATE                    | Keep the draft open; resolve permissions/concurrent edits and Retry YAML save                                                                                                         |
 | App restarted or browser closed        | Last persisted YAML survives. Re-record the same name if the source remains unfinished; do not treat an interrupted flow as complete                                                  |
@@ -734,10 +741,25 @@ to distinguish them. It records reference-only field activity.
 
 The recorder observes drag, wheel, pan/zoom, accessibility scrolling, and standard
 Flutter scroll-position changes, including when an ancestor consumes scroll
-notifications. Scroll replay identifies a visible destination and uses bounded,
-continuous Patrol scrolling to reach it; it does not reproduce an exact pixel
-offset. A target key on the `ListView`, `GridView`, or other `ScrollView` and a
-unique key on intended list items improve identity. `max_scrolls` defaults to 60
+notifications. Scrolling is recorded as an objective, not a pixel offset.
+Consecutive scrolls of one view (including searching back and forth) collapse
+into one step with the net direction. Scrolling away and back records nothing.
+An action inside the scrolled view, such as a tap, becomes the scroll's
+destination. Otherwise the furthest visible keyed item or unique text is used.
+If the scroll view itself has no unique key, the step omits `scroll_view` and
+replay finds the Scrollable from the destination. If neither the view nor any
+destination can be identified, the step needs review until you tap the intended
+item or add a key.
+
+Replay (`_recorderScrollTo`, a bounded `scrollTo()` used before `tap()`) works
+on any screen size. A destination that is already built is revealed with
+`ensureVisible`. Otherwise the recorded view (or, without a view key, each
+current-route Scrollable on the recorded axis, largest first) is dragged in
+steps of 30% of the viewport toward the recorded direction. At the scroll
+extent it waits for paged content, then sweeps back the other way. A drag the
+view absorbs falls back to a programmatic scroll. A unique key on the
+`ListView`, `GridView`, or other `ScrollView` and on intended list items still
+improves identity. `max_scrolls` (scrolls per sweep) defaults to 60
 and accepts 1-200. `wait_timeout_ms` defaults to 15000 and accepts 100-120000;
 these settings bound readiness and target waits. The recorder does not intercept
 arbitrary `Future`s or infer business-state completion.

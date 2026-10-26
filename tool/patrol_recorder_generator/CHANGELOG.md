@@ -1,3 +1,11 @@
+## Unreleased
+
+- Replay scrolls with `_recorderScrollTo`: reveal built targets with
+  `ensureVisible`, otherwise drag in steps of 30% of the viewport toward the
+  recorded direction, wait for paged content at the extent, then sweep back.
+  Scroll steps without `scroll_view` auto-detect the current-route Scrollable on
+  the recorded axis.
+
 ## 0.0.6
 
 - Support Dart >=3.8.0 <4.0.0 and Flutter >=3.32.0 through recorder 0.0.6.

@@ -22,6 +22,7 @@ from publish_packages import (
     hosted_version_exists,
     hosted_version_is_resolvable,
     read_version,
+    resolve_generator_dependencies,
     stage_generator,
 )
 
@@ -36,6 +37,11 @@ def wait_for_hosted(package: str, version: str) -> None:
         if hosted_version_exists(package, version) and hosted_version_is_resolvable(package, version):
             return
         if attempt < 60:
+            print(
+                f"Waiting for {package} {version} in pub.dev's package index "
+                f"(attempt {attempt + 1}/61)...",
+                flush=True,
+            )
             time.sleep(10)
     raise RuntimeError(
         f"{package} {version} is not visible on pub.dev after upload. "
@@ -71,7 +77,7 @@ def main() -> int:
                 with tempfile.TemporaryDirectory(prefix="patrol-generator-release-") as temporary:
                     staged = Path(temporary)
                     stage_generator(staged)
-                    run("flutter", "pub", "get", cwd=staged)
+                    resolve_generator_dependencies(staged, version)
                     run("flutter", "analyze", cwd=staged)
                     run("flutter", "test", cwd=staged, env=generator_test_environment())
                     run("flutter", "pub", "publish", "--dry-run", cwd=staged)

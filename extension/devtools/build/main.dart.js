@@ -27606,7 +27606,7 @@ s.a9G(a,b,c)
 return s},
 aWy(a){var s,r,q="timeout_ms",p=new A.az(B.qm,new A.a8N(a),t.pG),o=!0
 if(p.gD(0)===1){s=a.gbh()
-if(!s.c7(s,new A.a8O()))o=a.h(0,q)!=null&&!A.ew(a.h(0,q))}if(o)throw A.f(B.IR)
+if(!s.c7(s,new A.a8O()))o=a.h(0,q)!=null&&!A.ew(a.h(0,q))}if(o)throw A.f(B.IQ)
 o=p.gbJ(0)
 s=a.h(0,"value")
 r=A.h2(a.h(0,q))
@@ -27615,10 +27615,10 @@ aLV(a,b){var s=b.length,r=!0
 if(s!==0)if(s<=256)s=a===B.m7&&!B.Uj.n(0,b)
 else s=r
 else s=r
-if(s)A.U(B.Je)
+if(s)A.U(B.Jd)
 return new A.aip(a,b)},
 aLW(a){var s=new A.az(B.Nh,new A.aiq(a),t.Z7)
-if(s.gD(0)!==1||typeof a.h(0,"value")!="string")throw A.f(B.Jd)
+if(s.gD(0)!==1||typeof a.h(0,"value")!="string")throw A.f(B.Jc)
 return A.aLV(s.gbJ(0),A.bo(a.h(0,"value")))},
 h6(a,b){var s=A.b5("^[a-z][a-z0-9_]{0,63}$",!1,!1)
 if(!s.b.test(a))throw A.f(A.aM(b+" must be a lowercase identifier (1-64 characters).",null,null))
@@ -27640,11 +27640,11 @@ r=a!=null
 if(s==null===r)if(r)r=a.length===0||b!=null
 else r=!1
 else r=!0
-if(r)A.U(B.Jv)
+if(r)A.U(B.Ju)
 return new A.Eg(s,b,a)},
 aFG(a){var s,r="selector",q="scope",p="issue",o=!0
 if(!(a.h(0,r)!=null&&!t.a.b(a.h(0,r))))if(!(a.h(0,q)!=null&&!t.a.b(a.h(0,q))))o=a.h(0,p)!=null&&typeof a.h(0,p)!="string"
-if(o)throw A.f(B.J5)
+if(o)throw A.f(B.J4)
 o=a.h(0,r)==null?null:A.aLW(t.a.a(a.h(0,r)))
 s=a.h(0,q)==null?null:A.aLW(t.a.a(a.h(0,q)))
 return A.wS(A.bN(a.h(0,p)),s,o)},
@@ -27661,11 +27661,11 @@ break A}if("expect"===c){s=B.At
 break A}if("unsupported"===c){s=B.fs
 break A}s=A.U(B.IJ)}r=!0
 if(typeof a.h(0,"id")=="string"){q=t.a
-if(q.b(a.h(0,"target")))if(A.ev(a.h(0,"secret")))if(!(a.h(0,g)!=null&&typeof a.h(0,g)!="string"))if(!(a.h(0,f)!=null&&typeof a.h(0,f)!="string"))if(!(a.h(0,e)!=null&&!q.b(a.h(0,e))))r=a.h(0,d)!=null&&!q.b(a.h(0,d))}if(r)throw A.f(B.J0)
+if(q.b(a.h(0,"target")))if(A.ev(a.h(0,"secret")))if(!(a.h(0,g)!=null&&typeof a.h(0,g)!="string"))if(!(a.h(0,f)!=null&&typeof a.h(0,f)!="string"))if(!(a.h(0,e)!=null&&!q.b(a.h(0,e))))r=a.h(0,d)!=null&&!q.b(a.h(0,d))}if(r)throw A.f(B.J_)
 p=new A.az(B.Nq,new A.aim(a),t.Dd)
 if(p.gD(0)!==1)throw A.f(B.JB)
 o=new A.az(B.LA,new A.ain(a),t.Jy)
-if(a.h(0,"scrollDirection")!=null&&o.gD(0)!==1)throw A.f(B.Jr)
+if(a.h(0,"scrollDirection")!=null&&o.gD(0)!==1)throw A.f(B.Jq)
 r=A.bo(a.h(0,"id"))
 q=t.a
 n=A.aFG(q.a(a.h(0,"target")))
@@ -27685,16 +27685,16 @@ return p},
 aZU(a){var s,r,q,p,o,n,m,l,k,j="appImport",i="appBuilder",h="safeProfiles"
 if(!(a.h(0,j)!=null&&typeof a.h(0,j)!="string"))s=a.h(0,i)!=null&&typeof a.h(0,i)!="string"||!t.a.b(a.h(0,h))
 else s=!0
-if(s)throw A.f(B.J4)
+if(s)throw A.f(B.J3)
 s=t.N
 r=A.n(s,t.GU)
 for(q=t.a,p=q.a(a.h(0,h)).gcp(),p=p.gN(p);p.u();){o=p.gJ()
 n=o.b
-if(!q.b(n))throw A.f(B.Jf)
+if(!q.b(n))throw A.f(B.Je)
 m=A.n(s,s)
 for(n=q.a(n).gcp(),n=n.gN(n);n.u();){l=n.gJ()
 k=l.b
-if(typeof k!="string")throw A.f(B.Jm)
+if(typeof k!="string")throw A.f(B.Jl)
 m.j(0,l.a,k)}r.j(0,o.a,m)}s=A.bN(a.h(0,j))
 return A.aFF(A.bN(a.h(0,i)),s,r)},
 my:function my(a,b){this.a=a
@@ -27897,7 +27897,7 @@ axY:function axY(){},
 axZ:function axZ(a){this.a=a},
 R2(a,b,c,d){var s=0,r=A.y(t.EW),q,p,o,n
 var $async$R2=A.z(function(e,f){if(e===1)return A.v(f,r)
-for(;;)switch(s){case 0:if(d.geb()!=="file"||!B.c.fd(d.gcE(),"/"))throw A.f(B.Jq)
+for(;;)switch(s){case 0:if(d.geb()!=="file"||!B.c.fd(d.gcE(),"/"))throw A.f(B.Jp)
 s=3
 return A.o(c.fV(d.a_("pubspec.yaml")),$async$R2)
 case 3:p=f
@@ -28016,11 +28016,11 @@ a8Q(a,b,c,d,e,f,g,h,i,j,k){var s=new A.a8P(g,e,c,d,h,i,j,b,a,k,f)
 s.a9H(a,b,c,d,e,f,g,h,i,j,k)
 return s},
 aK7(a1,a2){var s,r,q,p,o,n,m,l,k,j,i,h,g=null,f="Sign in with demonstration profile",e="patrol_test/recorded_journeys",d="patrol_recorder",c="patrol_recorder/screenshots",b="app_import",a="app_builder",a0=A.aPO(a1)
-if(!(a0 instanceof A.tV)||typeof a0.h(0,"name")!="string")throw A.f(B.IZ)
+if(!(a0 instanceof A.tV)||typeof a0.h(0,"name")!="string")throw A.f(B.IY)
 if(a2!=null&&!J.d(a0.h(0,"name"),a2))throw A.f(A.aM("Select the application project named "+a2+", not the recorder/tooling package.",g,g))
 s=a0.h(0,"recorder_config")
 if(s==null)return A.a8Q(g,g,"sign_in",f,"login",60,e,"demo",d,c,15e3)
-if(!(s instanceof A.tV))throw A.f(B.IS)
+if(!(s instanceof A.tV))throw A.f(B.IR)
 if(s.gbh().c7(0,new A.a8R()))throw A.f(B.Jz)
 r=new A.a8S(s)
 q=new A.a8T(s)
@@ -28060,11 +28060,11 @@ if(q!=null){p=B.lB.h(0,q.a)
 p.toString
 r.j(0,"within",A.Y([p,q.b],s,s))}return r},
 aCp(a){var s,r,q
-if(a.a!==1)throw A.f(B.Js)
+if(a.a!==1)throw A.f(B.Jr)
 s=new A.cE(a,A.m(a).i("cE<1,2>")).gbJ(0)
 r=B.lB.gcp()
 q=r.kL(r,new A.aCq(s))
-if(q.gD(q)!==1||typeof s.b!="string")throw A.f(B.IT)
+if(q.gD(q)!==1||typeof s.b!="string")throw A.f(B.IS)
 return A.aLV(q.gbJ(q).a,A.bo(s.b))},
 dC(a,b){var s,r,q
 if(t.f.b(a)){s=a.gbh()
@@ -28096,7 +28096,7 @@ i.B(0,"extent")
 A.k6(j,i,o)
 i=!0
 if(A.ew(j.h(0,m)))if(A.ew(j.h(0,l)))if(A.ew(j.h(0,k)))if(J.d(j.h(0,"extent"),"visible_viewport"))i=j.h(0,n)!=null&&typeof j.h(0,n)!="string"
-if(i)throw A.f(B.IY)
+if(i)throw A.f(B.IX)
 i=A.ey(j.h(0,b?"id":"name"),"Screenshot name")
 s=A.ey(j.h(0,"path"),"Screenshot path")
 r=A.dc(j.h(0,m))
@@ -28122,7 +28122,7 @@ f.j(0,n,o)}m=new A.aie(a2,a5,c,a6,b2,l,j,i,a8,a,h,g,e,s,A.iz(f,k,r),A.dV(d,t.cU)
 m.a9S(a,b,c,d,a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,b0,b1,b2,b3)
 return m},
 aZS(c5){var s,r,q,p,o,n,m,l,k,j,i,h,g,f,e,d,c,b,a,a0,a1,a2,a3,a4,a5=null,a6="journey file",a7="schema_version",a8="journey",a9="session_id",b0="app",b1="steps",b2="screenshots",b3="recording_error",b4="acknowledged_incomplete",b5="id",b6="Session ID",b7="action",b8="target",b9="input",c0="secret",c1="text",c2="scroll_view",c3="direction",c4="expectation"
-if(c5.length>1048576)throw A.f(B.J6)
+if(c5.length>1048576)throw A.f(B.J5)
 s=null
 try{s=A.dC(A.aPO(c5),a6)}catch(q){p=A.a0(q)
 if(p instanceof A.yc){r=p
@@ -28141,7 +28141,7 @@ m.B(0,b4)
 A.k6(p,m,a6)
 p=!0
 if(A.ew(J.b9(s,a7)))if(!(!J.d(J.b9(s,a7),5)&&!J.d(J.b9(s,a7),4)&&!J.d(J.b9(s,a7),3)&&!J.d(J.b9(s,a7),2)&&!o)){m=t.j
-if(m.b(J.b9(s,b1)))if(m.b(J.b9(s,b2)))if(A.ev(J.b9(s,b4)))p=J.b9(s,b3)!=null&&typeof J.b9(s,b3)!="string"}if(p)throw A.f(B.IN)
+if(m.b(J.b9(s,b1)))if(m.b(J.b9(s,b2)))if(A.ev(J.b9(s,b4)))p=J.b9(s,b3)!=null&&typeof J.b9(s,b3)!="string"}if(p)throw A.f(B.IM)
 l=A.dC(J.b9(s,a8),a8)
 A.k6(l,A.bJ(["id","name","case_id","profile"],n),a8)
 if(o){A.h6(A.ey(J.b9(s,a9),b6),b6)
@@ -28152,18 +28152,18 @@ j=A.aFF(A.ey(k.h(0,"builder"),"App builder"),p,B.wk)}else j=a5
 i=A.b([],t.aD)
 h=A.ao(n)
 for(p=t.j,m=J.bi(p.a(J.b9(s,b1))),g=t.z,f=t.s;m.u();){e=A.dC(m.gJ(),"step")
-if(A.dc(J.b9(s,a7))<4&&J.d(e.h(0,b7),"expect"))throw A.f(B.IP)
+if(A.dc(J.b9(s,a7))<4&&J.d(e.h(0,b7),"expect"))throw A.f(B.IO)
 if(A.dc(J.b9(s,a7))<3&&B.b.n(A.b(["tapText","longPress","scrollUntilVisible"],f),e.h(0,b7)))throw A.f(B.Jy)
 A.k6(e,A.bJ(["id","action","target","review","source","include","input","secret","text","scroll_view","direction","expectation"],n),"step")
-if(!A.ev(e.h(0,"include")))throw A.f(B.J3)
+if(!A.ev(e.h(0,"include")))throw A.f(B.J2)
 if(J.d(e.h(0,b7),"enterText")){d=e.h(0,b9)
-if(typeof d!="string")throw A.f(B.Ju)
+if(typeof d!="string")throw A.f(B.Jt)
 c=A.b5("^\\{\\{([a-z][a-z0-9_]{0,63})\\}\\}$",!1,!1).fh(d)
-if(c==null||!A.ev(e.h(0,c0)))throw A.f(B.J2)
+if(c==null||!A.ev(e.h(0,c0)))throw A.f(B.J1)
 b=c.b[1]
 b.toString
 a=b}else{if(e.X(b9)||e.X(c0))throw A.f(B.II)
-a=a5}if(e.X("review")){if(e.X(b8))throw A.f(B.Jt)
+a=a5}if(e.X("review")){if(e.X(b8))throw A.f(B.Js)
 b=e.h(0,"review")
 if(typeof b=="string"){a0=b.length
 a0=a0===0||a0>1000}else a0=!0
@@ -28286,7 +28286,7 @@ return d},
 b4G(a8,a9){var s,r,q,p,o,n,m,l,k,j,i,h,g="action",f="target",e="review",d="source",c="input",b="secret",a="text",a0="scroll_view",a1="direction",a2="expectation",a3="asset",a4=null,a5="authored",a6=A.dC(a8,a9),a7=A.ey(J.b9(a6,"id"),a9+".id")
 try{k=t.N
 A.k6(a6,A.bJ(["id","action","target","review","source","include","input","secret","text","scroll_view","direction","expectation","asset","group"],k),"step")
-if(a6.X("include")&&!A.ev(J.b9(a6,"include")))throw A.f(B.Jh)
+if(a6.X("include")&&!A.ev(J.b9(a6,"include")))throw A.f(B.Jg)
 if(J.d(J.b9(a6,g),a3)||J.d(J.b9(a6,g),"group")){s=A.bo(J.b9(a6,g))
 A.k6(a6,A.bJ(["id","action",s,"source","include"],k),s)
 if(J.b9(a6,d)!=null&&!J.d(J.b9(a6,d),a5)){m=A.aM(A.k(s)+" source must be authored.",a4,a4)
@@ -28302,9 +28302,9 @@ m=i}return m}if(a6.X(a3)||a6.X("group"))throw A.f(B.JD)
 q=null
 if(J.d(J.b9(a6,g),"enterText")){p=J.b9(a6,c)
 o=typeof p=="string"?A.b5("^\\{\\{([a-z][a-z0-9_]{0,63})\\}\\}$",!1,!1).fh(p):a4
-if(o==null||!A.ev(J.b9(a6,b)))throw A.f(B.IQ)
+if(o==null||!A.ev(J.b9(a6,b)))throw A.f(B.IP)
 q=o.b[1]}else if(a6.X(c)||a6.X(b))throw A.f(B.IE)
-if(a6.X(f)&&a6.X(e))throw A.f(B.Ji)
+if(a6.X(f)&&a6.X(e))throw A.f(B.Jh)
 n=a6.X(e)?A.wS(A.ey(J.b9(a6,e),"Review reason"),a4,a4):A.aig(J.b9(a6,f),f)
 m=A.n(k,t.z)
 J.e2(m,"id",a7)
@@ -28349,7 +28349,7 @@ s=A.dC(b1.h(0,a1),a1)
 A.k6(s,A.bJ(["id","name","case_id","profile"],b0),a1)
 r=!0
 if(!(b1.h(0,a2)!=null&&typeof b1.h(0,a2)!="string"))if(!(b1.h(0,a3)!=null&&!A.ev(b1.h(0,a3))))if(!(b1.h(0,a4)!=null&&!t.j.b(b1.h(0,a4))))r=b1.h(0,a6)!=null&&!t.j.b(b1.h(0,a6))
-if(r)throw A.f(B.Jg)
+if(r)throw A.f(B.Jf)
 q=A.n(b0,t.H_)
 r=b1.h(0,"assets")
 if(r==null){r=t.z
@@ -28390,7 +28390,7 @@ if(n)throw A.f(A.aM("Input "+m+": unsupported type or invalid secret flag.",a8,a
 n=h.gbJ(0)
 l=A.ir(k.h(0,a9))
 l=l===!0
-if(l&&n!==B.pN)A.U(B.Jp)
+if(l&&n!==B.pN)A.U(B.Jo)
 i.j(0,m,new A.CQ(n,l))}r=b1.h(0,"steps")
 g=A.aCl(r==null?[]:r,"steps",!0)
 r=A.ey(s.h(0,"id"),"Journey ID")
@@ -28439,7 +28439,7 @@ b4F(a){var s,r,q,p,o,n="setup",m="selector_overrides",l=A.dC(a,"case"),k=t.N
 A.k6(l,A.bJ(["id","name","profile","steps","setup","data",m],k),"case")
 if(l.h(0,n)!=null){s=t.j
 s=!s.b(l.h(0,n))||J.aTz(s.a(l.h(0,n)),new A.aCk())}else s=!1
-if(s)throw A.f(B.IO)
+if(s)throw A.f(B.IN)
 r=A.aCl(l.h(0,"steps"),"case "+A.k(l.h(0,"id")),!0)
 s=A.ey(l.h(0,"id"),"Case ID")
 q=A.ey(l.h(0,"name"),"Case name")
@@ -28460,13 +28460,13 @@ if(s.gD(s)<=50){s=a.as
 if(s.gD(s)<=100){s=a.ax
 if(s.gD(s)<=50){s=a.ay
 if(s.gD(s)<=50){h=a.at
-h=h.gD(h)>50}}}}}if(h)throw A.f(B.Jo)
+h=h.gD(h)>50}}}}}if(h)throw A.f(B.Jn)
 h=i!==0
 if(h)if(a.r.length===0){s=a.CW
 s=s.gbt(s)||a.x.length!==0}else s=!0
 else s=!1
-if(s)throw A.f(B.Jj)
-if(new A.r(j,new A.aCx(),A.O(j).i("r<1,e>")).dM(0).a!==i)throw A.f(B.IX)
+if(s)throw A.f(B.Ji)
+if(new A.r(j,new A.aCx(),A.O(j).i("r<1,e>")).dM(0).a!==i)throw A.f(B.IW)
 for(i=a.ax,s=a.ay,r=a.at,q=[a.Q,a.as,i,s,r],p=0;p<5;++p)for(o=q[p].gbh(),o=o.gN(o);o.u();){n=o.gJ()
 m=A.b5("^[a-z][a-z0-9_]{0,63}$",!1,!1)
 if(!m.b.test(n))A.U(A.aM("Definition ID must be a lowercase identifier (1-64 characters).",k,k))}for(q=r.gcp(),q=q.gN(q);q.u();){o=q.gJ()
@@ -75413,7 +75413,7 @@ B.aJ.fl(s,b)
 return s.nH()},
 a_x(a,b){return this.pT(a,null,b)},
 C5(a){var s,r,q,p,o,n
-if(a.byteLength===0)throw A.f(B.Ja)
+if(a.byteLength===0)throw A.f(B.J9)
 s=new A.Ee(a)
 if(s.qJ(0)===0)return B.aJ.jY(s)
 r=B.aJ.jY(s)
@@ -75423,7 +75423,7 @@ o=s.b<a.byteLength?A.bN(B.aJ.jY(s)):null
 if(typeof r=="string")n=(q==null||typeof q=="string")&&s.b>=a.byteLength
 else n=!1
 if(n)throw A.f(A.aFy(r,p,A.bN(q),o))
-else throw A.f(B.IL)}}
+else throw A.f(B.IK)}}
 A.afR.prototype={
 avz(a,b,c){var s,r,q,p
 if(t.PB.b(b)){this.b.G(0,a)
@@ -94894,7 +94894,7 @@ A.fu.prototype={
 I(){return"RecordedExpectation."+this.b}}
 A.Ok.prototype={
 a9G(a,b,c){var s,r=this,q=r.c
-if(q<100||q>12e4)throw A.f(B.Jb)
+if(q<100||q>12e4)throw A.f(B.Ja)
 s=r.a
 A:{if(B.it===s){q=r.b
 if(typeof q=="string"){q=q.length
@@ -94936,17 +94936,19 @@ s=this.b
 s=s==null?null:s.C()
 return A.Y(["selector",r,"scope",s,"issue",this.c],t.N,t.X)}}
 A.fS.prototype={
-FH(a,b,c,d,e,f,g,h,i,j){var s,r,q=this
-A.h6(q.a,"Step ID")
-s=q.b
-if(s===B.At){if(q.y==null||q.c.a==null)throw A.f(B.JA)}else if(q.y!=null)throw A.f(B.Jk)
-if(s===B.Ar){r=q.d
-if(r==null)throw A.f(B.IV)
-A.h6(r,"Input reference")}else if(q.d!=null||q.e)throw A.f(B.J8)
-if(s===B.Aq){r=q.r
-if(r==null||B.c.dk(r).length===0||r.length>256)throw A.f(B.Jn)}else if(q.r!=null)throw A.f(B.Jx)
-if(s===B.As){s=q.w
-if((s==null?null:s.a)==null||q.x==null)throw A.f(B.IK)}else if(q.w!=null||q.x!=null)throw A.f(B.IU)},
+FH(a,b,c,d,e,f,g,h,i,j){var s,r,q,p=this
+A.h6(p.a,"Step ID")
+s=p.b
+if(s===B.At){if(p.y==null||p.c.a==null)throw A.f(B.JA)}else if(p.y!=null)throw A.f(B.Jj)
+if(s===B.Ar){r=p.d
+if(r==null)throw A.f(B.IU)
+A.h6(r,"Input reference")}else if(p.d!=null||p.e)throw A.f(B.J7)
+if(s===B.Aq){r=p.r
+if(r==null||B.c.dk(r).length===0||r.length>256)throw A.f(B.Jm)}else if(p.r!=null)throw A.f(B.Jx)
+if(s===B.As){s=!0
+if(p.x!=null){r=p.w
+q=r==null
+if(!(!q&&r.a==null))s=q&&p.c.a==null}if(s)throw A.f(B.Jv)}else if(p.w!=null||p.x!=null)throw A.f(B.IT)},
 C(){var s,r=this,q=A.n(t.N,t.X)
 q.j(0,"id",r.a)
 q.j(0,"action",r.b.b)
@@ -94976,8 +94978,8 @@ if(p.b.test(q)){q=A.b5("^[a-z][a-zA-Z0-9]*$",!1,!1)
 o.toString
 q=!q.b.test(o)}else q=n}else q=!1
 else q=n
-if(q)throw A.f(B.IW)
-if(c.ga8(c))throw A.f(B.J7)
+if(q)throw A.f(B.IV)
+if(c.ga8(c))throw A.f(B.J6)
 for(q=c.gcp(),q=q.gN(q);q.u();){p=q.gJ()
 o=p.a
 n=A.b5(r,!1,!1)
@@ -95253,7 +95255,7 @@ l=A.w9(t.f.a(g.h(0,"screenshot")),h,t.z)
 k=B.Eg.dd(A.bo(J.aE0(l,"png")))
 f=!0
 if(J.d(J.b9(l,"kind"),"flutterContent"))if(typeof J.b9(l,"captureId")=="string")if(J.bO(k)>=8){f=J.aTL(k,0,8)
-f=B.nM.gLl().dd(f)!=="iVBORw0KGgo="}if(f)throw A.f(B.J9)
+f=B.nM.gLl().dd(f)!=="iVBORw0KGgo="}if(f)throw A.f(B.J8)
 f=m.ch
 if(B.b.lp(f,J.bO(k),new A.awV())>20971520)throw A.f(A.a8("Screenshot memory limit reached. Stop and start a new recording."))
 if(m.c==null){s=1
@@ -95361,9 +95363,12 @@ c=A.db(k+": "+g.b.b+c,a3,a3,a3,a3,a3,a3)
 if(d){f=f.C().k(0)
 e=g.r
 e=e==null?"":"\nInline link: "+e
-d=g.w
-d=d==null?"":"\nScroll "+g.x.b+" in "+d.C().k(0)
-b=g.y
+d=g.x
+if(d==null)d=""
+else{d=d.b
+b=g.w
+b=b==null?a3:b.C()
+d="\nScroll "+d+" in "+A.k(b==null?"the Scrollable containing the target":b)}b=g.y
 b=b==null?"":"\nExpect: "+b.C().k(0)
 a=g.d
 if(a==null)a=""
@@ -95647,7 +95652,7 @@ p.j(0,"command",a)
 s=3
 return A.o(n.wp("ext.patrol_recorder.command",p).a37(B.HR),$async$wv)
 case 3:o=d.a
-if(o==null||!J.d(o.h(0,"protocolVersion"),6))throw A.f(B.Jc)
+if(o==null||!J.d(o.h(0,"protocolVersion"),7))throw A.f(B.Jb)
 q=o
 s=1
 break
@@ -96196,10 +96201,10 @@ $1(a){return!this.a.n(0,a)},
 $S:12}
 A.aD_.prototype={
 $2(a,b){var s,r,q,p
-if(b>20)throw A.f(B.Jl)
+if(b>20)throw A.f(B.Jk)
 if(t.j.b(a))return A.dV(J.iu(a,new A.aD0(this,b),t.z),t.X)
 if(t.f.b(a)){s=a.gbh()
-if(s.c7(s,new A.aD1()))throw A.f(B.J1)
+if(s.c7(s,new A.aD1()))throw A.f(B.J0)
 s=t.z
 s=A.n(s,s)
 for(r=a.gcp(),r=r.gN(r),q=b+1;r.u();){p=r.gJ()
@@ -96286,10 +96291,10 @@ s=q.e
 if(s!=="recording"&&s!=="stopped")throw A.f(B.IF)
 r=new A.r(a1,new A.aih(),A.O(a1).i("r<1,e>")).dM(0)
 s=a1.length
-if(s>500||r.a!==s||e.c7(0,new A.aii(r)))throw A.f(B.IM)
+if(s>500||r.a!==s||e.c7(0,new A.aii(r)))throw A.f(B.IL)
 if(n.length<=10){s=A.O(n).i("r<1,e>")
 s=new A.r(n,new A.aij(),s).dM(0).a!==n.length||new A.r(n,new A.aik(),s).dM(0).a!==n.length||B.b.c7(n,new A.ail(r))}else s=!0
-if(s)throw A.f(B.J_)
+if(s)throw A.f(B.IZ)
 A.b50(q)}}
 A.aih.prototype={
 $1(a){return a.a},
@@ -104479,58 +104484,58 @@ B.IH=new A.aG("Use a project-relative path without traversal or special characte
 B.II=new A.aG("Only text actions can contain an input reference.",null,null)
 B.pv=new A.aG("Invalid method call",null,null)
 B.IJ=new A.aG("Unsupported recorded action.",null,null)
-B.IK=new A.aG("A scroll needs an identified viewport and direction.",null,null)
-B.IL=new A.aG("Invalid envelope",null,null)
-B.IM=new A.aG("Invalid, duplicate, or excessive recorded steps.",null,null)
-B.IN=new A.aG("Invalid or incompatible journey YAML schema.",null,null)
-B.IO=new A.aG("Case setup must be a list of names.",null,null)
-B.IP=new A.aG("Expect steps require schema 4.",null,null)
-B.IQ=new A.aG("Text entry requires a {{name}} input reference and a secret boolean.",null,null)
-B.IR=new A.aG("Unsupported or incomplete expectation.",null,null)
-B.IS=new A.aG("pubspec.yaml recorder_config must be a mapping.",null,null)
-B.IT=new A.aG("Unknown selector. Coordinate/index selectors are not supported.",null,null)
-B.IU=new A.aG("Only scroll actions can contain a viewport or direction.",null,null)
-B.IV=new A.aG("Text entry requires an input reference.",null,null)
-B.IW=new A.aG("Configure a package Dart import and a public no-argument widget builder.",null,null)
-B.IX=new A.aG("Duplicate case IDs.",null,null)
-B.IY=new A.aG("Invalid screenshot fields.",null,null)
-B.IZ=new A.aG("The selected project needs a valid pubspec.yaml.",null,null)
-B.J_=new A.aG("Invalid screenshot associations.",null,null)
-B.J0=new A.aG("Invalid recorded step.",null,null)
+B.IK=new A.aG("Invalid envelope",null,null)
+B.IL=new A.aG("Invalid, duplicate, or excessive recorded steps.",null,null)
+B.IM=new A.aG("Invalid or incompatible journey YAML schema.",null,null)
+B.IN=new A.aG("Case setup must be a list of names.",null,null)
+B.IO=new A.aG("Expect steps require schema 4.",null,null)
+B.IP=new A.aG("Text entry requires a {{name}} input reference and a secret boolean.",null,null)
+B.IQ=new A.aG("Unsupported or incomplete expectation.",null,null)
+B.IR=new A.aG("pubspec.yaml recorder_config must be a mapping.",null,null)
+B.IS=new A.aG("Unknown selector. Coordinate/index selectors are not supported.",null,null)
+B.IT=new A.aG("Only scroll actions can contain a viewport or direction.",null,null)
+B.IU=new A.aG("Text entry requires an input reference.",null,null)
+B.IV=new A.aG("Configure a package Dart import and a public no-argument widget builder.",null,null)
+B.IW=new A.aG("Duplicate case IDs.",null,null)
+B.IX=new A.aG("Invalid screenshot fields.",null,null)
+B.IY=new A.aG("The selected project needs a valid pubspec.yaml.",null,null)
+B.IZ=new A.aG("Invalid screenshot associations.",null,null)
+B.J_=new A.aG("Invalid recorded step.",null,null)
 B.pw=new A.aG("Invalid screenshot metadata.",null,null)
-B.J1=new A.aG("Typed data keys must be strings.",null,null)
-B.J2=new A.aG("Text actions require a {{name}} reference and a secret flag, never literal values.",null,null)
-B.J3=new A.aG("A step needs an include flag.",null,null)
-B.J4=new A.aG("Invalid app configuration.",null,null)
-B.J5=new A.aG("Invalid recorder target.",null,null)
-B.J6=new A.aG("Journey YAML exceeds 1 MiB.",null,null)
-B.J7=new A.aG("At least one safe data profile is required.",null,null)
-B.J8=new A.aG("A tap cannot contain input data.",null,null)
-B.J9=new A.aG("The app did not return a viewport PNG.",null,null)
-B.Ja=new A.aG("Expected envelope, got nothing",null,null)
-B.Jb=new A.aG("Expectation timeout_ms must be 100-120000.",null,null)
-B.Jc=new A.aG("Recorder protocol mismatch. Rebuild the extension and restart the recording app.",null,null)
-B.Jd=new A.aG("Invalid selector encoding.",null,null)
-B.Je=new A.aG("Invalid or unsupported selector.",null,null)
-B.Jf=new A.aG("Invalid profile.",null,null)
-B.Jg=new A.aG("Invalid journey metadata, cases, or screenshots.",null,null)
-B.Jh=new A.aG("include must be a boolean.",null,null)
-B.Ji=new A.aG("A review step cannot also have a target.",null,null)
-B.Jj=new A.aG("Use either flat steps/screenshots/overrides or cases, not both.",null,null)
-B.Jk=new A.aG("Only expect steps can contain an expectation.",null,null)
+B.J0=new A.aG("Typed data keys must be strings.",null,null)
+B.J1=new A.aG("Text actions require a {{name}} reference and a secret flag, never literal values.",null,null)
+B.J2=new A.aG("A step needs an include flag.",null,null)
+B.J3=new A.aG("Invalid app configuration.",null,null)
+B.J4=new A.aG("Invalid recorder target.",null,null)
+B.J5=new A.aG("Journey YAML exceeds 1 MiB.",null,null)
+B.J6=new A.aG("At least one safe data profile is required.",null,null)
+B.J7=new A.aG("A tap cannot contain input data.",null,null)
+B.J8=new A.aG("The app did not return a viewport PNG.",null,null)
+B.J9=new A.aG("Expected envelope, got nothing",null,null)
+B.Ja=new A.aG("Expectation timeout_ms must be 100-120000.",null,null)
+B.Jb=new A.aG("Recorder protocol mismatch. Rebuild the extension and restart the recording app.",null,null)
+B.Jc=new A.aG("Invalid selector encoding.",null,null)
+B.Jd=new A.aG("Invalid or unsupported selector.",null,null)
+B.Je=new A.aG("Invalid profile.",null,null)
+B.Jf=new A.aG("Invalid journey metadata, cases, or screenshots.",null,null)
+B.Jg=new A.aG("include must be a boolean.",null,null)
+B.Jh=new A.aG("A review step cannot also have a target.",null,null)
+B.Ji=new A.aG("Use either flat steps/screenshots/overrides or cases, not both.",null,null)
+B.Jj=new A.aG("Only expect steps can contain an expectation.",null,null)
 B.bu=new A.aG("Message corrupted",null,null)
-B.Jl=new A.aG("Typed data exceeds 20 levels of nesting.",null,null)
-B.Jm=new A.aG("M1 profile values must be strings.",null,null)
-B.Jn=new A.aG("A text-span tap needs unique, nonempty link text.",null,null)
-B.Jo=new A.aG("Journey definition exceeds cases/assets/inputs/groups/setup/profile limits.",null,null)
-B.Jp=new A.aG("Secret inputs must have type string.",null,null)
-B.Jq=new A.aG("Select an authorized app project directory.",null,null)
-B.Jr=new A.aG("Invalid scroll direction.",null,null)
-B.Js=new A.aG("A target needs exactly one selector.",null,null)
-B.Jt=new A.aG("A review step cannot also claim a resolved target.",null,null)
+B.Jk=new A.aG("Typed data exceeds 20 levels of nesting.",null,null)
+B.Jl=new A.aG("M1 profile values must be strings.",null,null)
+B.Jm=new A.aG("A text-span tap needs unique, nonempty link text.",null,null)
+B.Jn=new A.aG("Journey definition exceeds cases/assets/inputs/groups/setup/profile limits.",null,null)
+B.Jo=new A.aG("Secret inputs must have type string.",null,null)
+B.Jp=new A.aG("Select an authorized app project directory.",null,null)
+B.Jq=new A.aG("Invalid scroll direction.",null,null)
+B.Jr=new A.aG("A target needs exactly one selector.",null,null)
+B.Js=new A.aG("A review step cannot also claim a resolved target.",null,null)
 B.px=new A.aG("Case name must contain 1-120 printable characters.",null,null)
-B.Ju=new A.aG("Input must be a {{name}} reference.",null,null)
-B.Jv=new A.aG("A target needs a selector or an unresolved reason.",null,null)
+B.Jt=new A.aG("Input must be a {{name}} reference.",null,null)
+B.Ju=new A.aG("A target needs a selector or an unresolved reason.",null,null)
+B.Jv=new A.aG("A scroll needs a direction and an identified viewport or destination.",null,null)
 B.Jw=new A.aG("Asset path must be relative to the journey root under assets/.",null,null)
 B.Jx=new A.aG("Only a text-span tap can contain link text.",null,null)
 B.Jy=new A.aG("This action requires schema 3. Re-record the journey with the current recorder.",null,null)

@@ -103,6 +103,9 @@ class PublicationTest(unittest.TestCase):
         self.stack.enter_context(patch.object(release_ci, "changelog_is_ready", return_value=True))
         self.commands = self.stack.enter_context(patch.object(release_ci, "run"))
         self.stage = self.stack.enter_context(patch.object(release_ci, "stage_generator"))
+        self.resolve = self.stack.enter_context(
+            patch.object(release_ci, "resolve_generator_dependencies")
+        )
         self.wait = self.stack.enter_context(patch.object(release_ci, "wait_for_hosted"))
         self.hosted = self.stack.enter_context(
             patch.object(release_ci, "hosted_version_exists", return_value=False)
@@ -116,7 +119,8 @@ class PublicationTest(unittest.TestCase):
         )]
         self.assertEqual(len(uploads), 2)
         self.assertEqual(commands[uploads[0] - 1], ("flutter", "pub", "publish", "--dry-run"))
-        self.assertIn(("flutter", "pub", "get"), commands[uploads[0] + 1:uploads[1]])
+        self.resolve.assert_called_once_with(self.stage.call_args.args[0], "0.0.4")
+        self.assertIn(("flutter", "analyze"), commands[uploads[0] + 1:uploads[1]])
         self.assertEqual(commands[uploads[1] - 1], ("flutter", "pub", "publish", "--dry-run"))
         self.stage.assert_called_once()
 
@@ -126,11 +130,24 @@ class PublicationTest(unittest.TestCase):
         uploads = [call for call in self.commands.call_args_list if "--force" in call.args]
         self.assertEqual(len(uploads), 1)
         self.assertIn("cwd", uploads[0].kwargs)
+        self.resolve.assert_called_once()
 
     def test_completed_release_is_noop(self):
         self.hosted.return_value = True
         self.assertEqual(release_ci.main(), 0)
         self.commands.assert_not_called()
+        self.resolve.assert_not_called()
+
+    def test_failed_resolution_stops_generator_validation_and_upload(self):
+        self.resolve.side_effect = RuntimeError("Recorder not resolvable")
+        self.assertEqual(release_ci.main(), 1)
+        self.assertEqual(
+            [call.args for call in self.commands.call_args_list],
+            [
+                ("flutter", "pub", "publish", "--dry-run"),
+                ("flutter", "pub", "publish", "--force"),
+            ],
+        )
 
     def test_failed_dry_run_never_uploads(self):
         self.commands.side_effect = subprocess.CalledProcessError(1, "flutter")
@@ -175,6 +192,7 @@ class PropagationTest(unittest.TestCase):
             ),
             patch.object(publish_packages, "wait_until_hosted", return_value=True),
             patch.object(publish_packages, "run", return_value=True) as commands,
+            patch.object(publish_packages, "resolve_generator_dependencies") as resolve,
             patch.object(publish_packages, "confirmed_upload", return_value=False),
             patch.object(publish_packages, "stage_generator"),
             contextlib.redirect_stdout(io.StringIO()),
@@ -185,6 +203,7 @@ class PropagationTest(unittest.TestCase):
             if "--dry-run" in call.args[0] and call.kwargs["cwd"] == publish_packages.ROOT
         ]
         self.assertEqual(root_dry_runs, [])
+        resolve.assert_called_once()
         self.assertTrue(any("--dry-run" in call.args[0] for call in commands.call_args_list))
 
     def test_version_endpoint_alone_is_not_resolution_readiness(self):
@@ -213,6 +232,73 @@ class PropagationTest(unittest.TestCase):
             self.assertTrue((destination / "bin").is_dir())
             self.assertFalse((destination / "pubspec_overrides.yaml").exists())
             self.assertFalse((destination / ".dart_tool").exists())
+
+
+class HostedResolutionTest(unittest.TestCase):
+    missing_recorder = (
+        "Because patrol_recorder_generator depends on patrol_recorder\n"
+        "  ^0.0.6 which doesn't match any versions, version solving failed.\n"
+    )
+
+    def setUp(self):
+        stack = contextlib.ExitStack()
+        self.addCleanup(stack.close)
+        self.output = stack.enter_context(contextlib.redirect_stdout(io.StringIO()))
+        self.run = stack.enter_context(patch.object(publish_packages.subprocess, "run"))
+        self.sleep = stack.enter_context(patch.object(publish_packages.time, "sleep"))
+        self.cwd = Path("/staged-generator")
+
+    def result(self, code=0, output="Got dependencies!\n"):
+        return subprocess.CompletedProcess(["flutter", "pub", "get"], code, output)
+
+    def test_success_requires_no_retry_and_uses_staged_hosted_manifest(self):
+        self.run.return_value = self.result()
+        publish_packages.resolve_generator_dependencies(self.cwd, "0.0.6")
+        self.run.assert_called_once_with(
+            ["flutter", "pub", "get"], cwd=self.cwd, stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT, text=True, check=False,
+        )
+        self.sleep.assert_not_called()
+
+    def test_missing_recorder_retries_until_flutter_resolves_it(self):
+        self.run.side_effect = [
+            self.result(1, self.missing_recorder),
+            self.result(1, self.missing_recorder.replace("^0.0.6", ">=0.0.6 <0.1.0")),
+            self.result(),
+        ]
+        publish_packages.resolve_generator_dependencies(self.cwd, "0.0.6")
+        self.assertEqual(self.run.call_count, 3)
+        self.assertEqual(self.sleep.call_count, 2)
+        self.sleep.assert_called_with(10)
+        self.assertIn(self.missing_recorder, self.output.getvalue())
+        self.assertIn("retrying in 10 seconds", self.output.getvalue())
+
+    def test_unrelated_failures_stop_without_retry(self):
+        for output in (
+            self.missing_recorder.replace("depends on patrol_recorder\n", "depends on analyzer\n"),
+            "The current Dart SDK version is incompatible.\n",
+            "Connection failed while resolving dependencies.\n",
+        ):
+            with self.subTest(output=output):
+                self.run.return_value = self.result(1, output)
+                with self.assertRaisesRegex(RuntimeError, "not a recorder propagation error"):
+                    publish_packages.resolve_generator_dependencies(self.cwd, "0.0.6")
+        self.assertEqual(self.run.call_count, 3)
+        self.sleep.assert_not_called()
+
+    def test_missing_recorder_times_out_without_hiding_failure(self):
+        self.run.return_value = self.result(1, self.missing_recorder)
+        with self.assertRaisesRegex(RuntimeError, "No generator was published"):
+            publish_packages.resolve_generator_dependencies(self.cwd, "0.0.6")
+        self.assertEqual(self.run.call_count, 61)
+        self.assertEqual(self.sleep.call_count, 60)
+        self.assertEqual(sum(call.args[0] for call in self.sleep.call_args_list), 600)
+
+    def test_resolution_can_succeed_on_last_attempt(self):
+        self.run.side_effect = [self.result(1, self.missing_recorder)] * 60 + [self.result()]
+        publish_packages.resolve_generator_dependencies(self.cwd, "0.0.6")
+        self.assertEqual(self.run.call_count, 61)
+        self.assertEqual(self.sleep.call_count, 60)
 
 
 if __name__ == "__main__":
