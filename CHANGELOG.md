@@ -1,3 +1,7 @@
+## 0.0.7 (release candidate)
+
+- TODO: Describe the changes included in this release.
+
 ## Unreleased
 
 - Attribute taps to the enclosing interactive widget and prefer its key, or the

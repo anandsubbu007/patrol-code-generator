@@ -27,7 +27,7 @@ advances both packages to 0.0.5.
   The extension source requires Flutter >=3.35.0 / Dart >=3.9.0; consumers
   receive compiled assets. Older-SDK package checks are not full DevTools
   recording/Patrol replay proof.
-- The generator dependency uses `patrol_recorder: '>=0.0.6 <0.1.0'`. This
+- The generator dependency uses `patrol_recorder: '>=0.0.7 <0.1.0'`. This
   admits compatible patch releases but excludes older versions (including
   0.0.4) and 0.1.0.
 - Consumer instructions use the same range for both Patrol Recorder packages.

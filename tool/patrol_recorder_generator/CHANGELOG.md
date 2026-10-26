@@ -1,3 +1,7 @@
+## 0.0.7 (release candidate)
+
+- Improved Scrolling behaviour
+
 ## Unreleased
 
 - Replay scrolls with `_recorderScrollTo`: reveal built targets with

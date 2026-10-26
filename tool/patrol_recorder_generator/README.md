@@ -239,7 +239,7 @@ asset contents rather than silently skipping the step.
 
 The local `pubspec_overrides.yaml` resolves `patrol_recorder` from the checkout.
 It is excluded from the published archive. The release manifest uses hosted
-dependency `patrol_recorder: '>=0.0.6 <0.1.0'`, which supplies the expectation
+dependency `patrol_recorder: '>=0.0.7 <0.1.0'`, which supplies the expectation
 transport types. After publishing the recorder, verify this generator package
 resolves without overrides before publishing it.
 The repository root excludes `tool/` from its runtime archive, and Pub

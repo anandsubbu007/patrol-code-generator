@@ -113,11 +113,11 @@ put **only the recorder** in regular dependencies instead:
 dependencies:
   flutter:
     sdk: flutter
-  patrol_recorder: '>=0.0.6 <0.1.0'
+  patrol_recorder: '>=0.0.7 <0.1.0'
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  patrol_recorder_generator: '>=0.0.6 <0.1.0'
+  patrol_recorder_generator: '>=0.0.7 <0.1.0'
   patrol: 4.10.0
 ```
 
@@ -626,8 +626,8 @@ make the complete workflow installable from pub.dev.
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  patrol_recorder: '>=0.0.6 <0.1.0'
-  patrol_recorder_generator: '>=0.0.6 <0.1.0'
+  patrol_recorder: '>=0.0.7 <0.1.0'
+  patrol_recorder_generator: '>=0.0.7 <0.1.0'
   patrol: 4.10.0
 
 patrol:
