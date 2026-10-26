@@ -1,4 +1,4 @@
-name: Publish packages
+name: Publish recorder
 
 on:
   push:
@@ -32,7 +32,7 @@ jobs:
         with:
           token: ${{ secrets.RELEASE_TAG_TOKEN }}
           fetch-depth: 0
-      - name: Prepare coordinated versions
+      - name: Prepare recorder version
         env:
           RELEASE_REF: ${{ github.ref_name }}
         run: python3 tool/prepare_release.py "$RELEASE_REF" --from-ref --apply
@@ -46,9 +46,7 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add pubspec.yaml tool/patrol_recorder_generator/pubspec.yaml \
-            README.md tool/patrol_recorder_generator/README.md doc/PUBLISHING.md \
-            CONTRIBUTING.md CHANGELOG.md tool/patrol_recorder_generator/CHANGELOG.md
+          git add pubspec.yaml CHANGELOG.md
           if ! git diff --cached --quiet; then
             git commit -m "chore: prepare $RELEASE_REF" \
               -m "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
@@ -80,18 +78,11 @@ jobs:
         run: |
           dart format --language-version=latest --output=none --set-exit-if-changed \
             lib test \
-            tool/patrol_recorder_generator/lib tool/patrol_recorder_generator/bin tool/patrol_recorder_generator/test \
             tool/devtools_extension/lib tool/devtools_extension/test tool/devtools_extension/tool \
             example/lib example/test example/patrol_test
           flutter pub get
           flutter analyze lib test
           flutter test
-          (
-            cd tool/patrol_recorder_generator
-            flutter pub get
-            flutter analyze
-            flutter test
-          )
           (
             cd tool/devtools_extension
             flutter pub get
@@ -126,5 +117,5 @@ jobs:
         uses: dart-lang/setup-dart@v1
         with:
           sdk: 3.13.5
-      - name: Publish recorder then hosted-dependent generator
+      - name: Publish recorder
         run: python3 tool/release_ci.py

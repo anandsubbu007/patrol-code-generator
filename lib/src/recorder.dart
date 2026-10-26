@@ -54,12 +54,10 @@ class RecorderScreenshot {
 
 /// Owns automatic observations. Input values are never buffered or transported.
 class RecorderController extends ChangeNotifier {
-  RecorderController({RecorderAppConfig? config, this.maxSteps = 500})
-    : config = config ?? RecorderAppConfig() {
+  RecorderController({this.maxSteps = 500}) {
     if (maxSteps <= 0) throw ArgumentError('maxSteps must be positive.');
   }
 
-  final RecorderAppConfig config;
   final int maxSteps;
   final _boundaryKey = GlobalKey();
   final _appKey = GlobalKey();
@@ -76,8 +74,54 @@ class RecorderController extends ChangeNotifier {
   String? _selectionText;
   Rect? _selectionRect;
   Timer? _selectionTimer;
+  bool _selectText = false;
+  bool _addKey = false;
+  final _keySuggestions = <Map<String, String>>[];
 
-  void beginSelection() {
+  void configure({required bool addKey}) {
+    if (_state == RecordingState.recording) {
+      throw StateError('Stop recording before changing configuration.');
+    }
+    _addKey = addKey;
+    _changed();
+  }
+
+  void _suggestKey(Element element) {
+    if (!_addKey) return;
+    final path = <String>[];
+    var child = element;
+    element.visitAncestorElements((ancestor) {
+      var index = 0;
+      var childIndex = 0;
+      ancestor.visitChildren((sibling) {
+        if (identical(sibling, child)) childIndex = index;
+        index++;
+      });
+      path.add('${child.widget.runtimeType}[$childIndex]');
+      child = ancestor;
+      return !identical(ancestor, _boundaryKey.currentContext) &&
+          path.length < 24;
+    });
+    final treePath = path.reversed.join(' > ');
+    if (_keySuggestions.any((existing) => existing['tree'] == treePath)) return;
+    final root = _boundaryKey.currentContext;
+    if (root is! Element) return;
+    final tree = _TargetTree(root);
+    final base = screenshotName(element.widget.runtimeType.toString());
+    var suffix = _keySuggestions.length + 1;
+    var name = '${base}_$suffix';
+    while (tree.nodes.any((node) => tree._key(node) == name) ||
+        _keySuggestions.any((suggestion) => suggestion['key'] == name)) {
+      name = '${base}_${++suffix}';
+    }
+    _keySuggestions.add({
+      'widget': element.widget.runtimeType.toString(),
+      'key': name,
+      'tree': treePath,
+    });
+  }
+
+  void beginSelection({bool text = false}) {
     if (!kDebugMode || _state != RecordingState.recording || _capturing) {
       throw StateError(
         'Start recording before selecting an expectation target.',
@@ -86,6 +130,7 @@ class RecorderController extends ChangeNotifier {
     _observer?.flushScroll();
     _observer?.stop();
     _selection = null;
+    _selectText = text;
     _selectionText = null;
     _selectionRect = null;
     _selecting = true;
@@ -140,8 +185,24 @@ class RecorderController extends ChangeNotifier {
         }
       }
     }
+    if (_selectText && selected != null) {
+      Element? textElement;
+      if (selected.widget is Text || selected.widget is RichText) {
+        textElement = selected;
+      }
+      selected.visitAncestorElements((element) {
+        if (element.widget is Text) {
+          textElement = element;
+          return false;
+        }
+        return element != root;
+      });
+      selected = textElement;
+    }
     final control = selected == null
         ? null
+        : _selectText
+        ? selected
         : _observer?._control(selected) ?? selected;
     _selection = selected == null
         ? RecorderTarget(issue: 'No widget at this position.')
@@ -150,6 +211,11 @@ class RecorderController extends ChangeNotifier {
             issue: 'Private or ignored widgets cannot be selected.',
           )
         : tree.resolve(control!);
+    if (_selection?.selector == null &&
+        control != null &&
+        !tree.private(control)) {
+      _suggestKey(control);
+    }
     _selectionText = null;
     final selector = _selection?.selector;
     if (selector != null) {
@@ -222,6 +288,7 @@ class RecorderController extends ChangeNotifier {
       _captures = 0;
     }
     _steps.clear();
+    _keySuggestions.clear();
     _selecting = false;
     _selection = null;
     _selectionText = null;
@@ -311,12 +378,12 @@ class RecorderController extends ChangeNotifier {
     'sessionId': _sessionId,
     'sequence': _revision,
     'steps': _steps.map((step) => step.toJson()).toList(),
-    'config': config.toJson(),
     'error': _error,
     'screenshotSupported': kDebugMode,
     'selecting': _selecting,
     'selection': _selection?.toJson(),
     'selectionText': _selectionText,
+    'keySuggestions': List.unmodifiable(_keySuggestions),
     'capabilities': [
       'automaticTapCandidates',
       'focusedInputReferences',
@@ -538,10 +605,20 @@ void _registerService() {
           break;
         case 'start':
           recorder.start();
+        case 'configure':
+          final value = parameters['addkey'];
+          if (value != 'true' && value != 'false') {
+            throw const FormatException('addkey must be true or false.');
+          }
+          recorder.configure(addKey: value == 'true');
         case 'stop':
           recorder.stop();
         case 'selectTarget':
-          recorder.beginSelection();
+          final kind = parameters['kind'] ?? 'component';
+          if (kind != 'text' && kind != 'component') {
+            throw const FormatException('Select text or component.');
+          }
+          recorder.beginSelection(text: kind == 'text');
         case 'cancelSelection':
           recorder.cancelSelection();
         case 'confirmExpectation':

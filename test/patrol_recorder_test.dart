@@ -86,22 +86,12 @@ void main() {
     },
   );
 
-  test(
-    'screenshot names are safe and recorder bootstrap metadata is optional',
-    () {
-      expect(screenshotName('AccountSettingsPage'), 'account_settings_page');
-      expect(screenshotName('/settings/preferences'), 'settings_preferences');
-      expect(screenshotName('../ 42 Profile?'), 'screen_42_profile');
-      expect(screenshotName(''), 'screen');
-      final recorder = RecorderController();
-      expect(recorder.config.appImport, isNull);
-      expect(
-        RecorderAppConfig.fromJson(recorder.config.toJson()).appBuilder,
-        isNull,
-      );
-      recorder.dispose();
-    },
-  );
+  test('screenshot names are safe', () {
+    expect(screenshotName('AccountSettingsPage'), 'account_settings_page');
+    expect(screenshotName('/settings/preferences'), 'settings_preferences');
+    expect(screenshotName('../ 42 Profile?'), 'screen_42_profile');
+    expect(screenshotName(''), 'screen');
+  });
 
   testWidgets(
     'an unrelated private region does not make public labels unsupported',
@@ -780,25 +770,12 @@ void main() {
     );
   });
 
-  test(
-    'invalid targets, arbitrary types and profile credentials are rejected',
-    () {
-      expect(() => RecorderTarget(key: ''), throwsFormatException);
-      expect(
-        () => RecorderSelector(SelectorKind.widgetType, 'Evil()'),
-        throwsFormatException,
-      );
-      expect(() => RecorderTarget(), throwsFormatException);
-      expect(
-        () => RecorderAppConfig(
-          appImport: 'package:example/app.dart',
-          appBuilder: 'createApp',
-          safeProfiles: const {
-            'demo': {'password': 'never_export'},
-          },
-        ),
-        throwsFormatException,
-      );
-    },
-  );
+  test('invalid targets and arbitrary types are rejected', () {
+    expect(() => RecorderTarget(key: ''), throwsFormatException);
+    expect(
+      () => RecorderSelector(SelectorKind.widgetType, 'Evil()'),
+      throwsFormatException,
+    );
+    expect(() => RecorderTarget(), throwsFormatException);
+  });
 }

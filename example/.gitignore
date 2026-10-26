@@ -32,6 +32,9 @@ migrate_working_dir/
 .pub/
 /build/
 /coverage/
+/test_bundle.dart
+/playwright-report/
+/test-results/
 
 # Symbolication related
 app.*.symbols

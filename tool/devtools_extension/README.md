@@ -1,16 +1,8 @@
-# DevTools extension source
+# DevTools extension
 
-This unpublished Flutter web app uses public `devtools_extensions` and DTD APIs.
-The root package ships its compiled assets under `extension/devtools/build`.
-YAML schema/configuration is shared with the development-only
-[generator library](../patrol_recorder_generator/lib/generator.dart), not
-duplicated in the UI. The runtime recorder has no generator dependencies.
-The extension source app depends on the generator to build its compiled assets;
-users of the recorder receive those assets without this source dependency.
-For recorder/generator 0.0.6, this source app allows Dart >=3.9.0 <4.0.0
-and Flutter >=3.35.0 (its dropdowns use `initialValue`). The distributed
-recorder and generator allow Dart >=3.8.0 / Flutter >=3.32.0 because consumers
-do not compile the extension source. Dart 3.11 is within both ranges.
+This Flutter web app displays live Patrol Dart statements from the debug
+recorder. Record needs no journey name, intermediate file, or generation command.
+The package ships compiled assets under `extension/devtools/build`.
 
 ```sh
 flutter pub get
@@ -20,67 +12,19 @@ dart run devtools_extensions build_and_copy --source=. --dest=../../extension/de
 dart run devtools_extensions validate --package=../..
 ```
 
-The custom Flutter bootstrap loads packaged CanvasKit assets locally. No simulated
-DevTools environment is required by the actual proof.
+The panel polls the recorder snapshot once a second. Copy is blocked for
+unresolved actions until corrected or explicitly excluded; incomplete recordings
+require review. Disconnection retains the last preview but captures no further
+actions. Clipboard contents contain input references, not recorded values.
 
-`tool/generate_example.dart` is a create-only fixture generator for the two sample
-targets, not a test execution engine. It refuses to overwrite existing generated
-files. Do not run it over manually edited examples.
+DTD workspace access is required to read the app's optional
+`recorder_config.addkey` boolean. Start the recording app with `--print-dtd` or
+use IDE-managed DevTools. Exactly one authorized Flutter app depending on the
+recorder must be identifiable. Errors are shown rather than guessing a project.
+Key suggestions describe the action owner and tree path, but never edit source.
+Add approved keys yourself, rebuild, and re-record.
 
-The panel polls the snapshot RPC once a second and serializes autosaves. Record
-requires a name/authorized app root and writes an initial `.yml` immediately.
-Snapshots, screenshot captures, stop, and review changes update that same file.
-Text readback is verified. PNG writes/existence are acknowledged; binary readback
-is unavailable on this DTD host.
-
-Re-recording the same name replaces only validated recorder-owned YAML for that
-app. Foreign files and concurrent changes are refused. Interrupted sessions stay
-marked recording; the CLI will not generate from unfinished sources. Failures
-retain the draft and expose Retry YAML save.
-
-The automatic recorder uses protocol version 6 and writes schema-5 YAML. Schemas
-1-4 remain readable by the generator. Rebuild/reload both the extension
-and recording app after upgrading from the explicit-hook prototype. The generator
-supports key-first scoped selectors, labels/text, and allowlisted public widget
-types, requires review/exclusion of unresolved actions, and emits singleton assertions.
-Inline hyperlink text-range taps, long presses, and target-based scrolling use
-public Flutter APIs. Scroll-position listeners complement bubbling notifications,
-so a consuming ancestor does not prevent standard pointer scrolling from being
-observed. Generated Patrol scrolling seeks an identified target with bounded
-continuous movement; it does not reproduce exact offsets. Coordinates and index
-fallbacks are not supported. Select the app explicitly when DTD lists multiple
-projects. Recording-only app setup belongs in the example's
-`patrol_test/recorder_main.dart`, not application `lib/`.
-
-Capture suggests a stable name from active page semantics, route, or widget type.
-The naming dialog supports explicit state names and prevents duplicate names in
-one journey. PNGs use `<screenshots_directory>/<journey>/<name>.png`; small
-adjacent ownership markers allow safe generated-image replacement. Runtime
-session tokens are transient only; current YAML exports neither session IDs nor
-an app bootstrap block. The CLI infers normal main or uses a pubspec override.
-
-The UI does not generate Dart or collect data values. It displays the saved YAML
-path and copies a `dart run patrol_recorder_generator:generate` command. Defaults
-are optional `pubspec.yaml > recorder_config`, including YAML/screenshot directories.
-The CLI derives the abstract input contract from `{{name}}` references and preserves
-the user's implementation. No custom E2E execution engine is included.
-
-Add expectation consumes one app tap, resolves a stable widget target, and opens
-the expectation dialog. Exact text is suggested only from a single public text
-leaf; editable/sensitive/ignored content is not read back. The suggestion can be
-edited and is saved only after confirmation. Count and text retain independent
-drafts when switching modes. Advanced schema-5 assets, cases, typed profiles,
-setup/groups, and selector overrides are authored in stopped YAML and validated
-by the CLI; this panel does not yet offer a case/fixture editor.
-
-The generator also accepts `wait_timeout_ms` (100-120000; default 15000) and
-`max_scrolls` (1-200; default 60) in `recorder_config`. These bound readiness and
-target scrolling, not arbitrary application futures. The example's local delayed
-operations are fixtures only; they do not contact a network. Custom painting,
-opaque platform views, pinch/slider-specific gestures, and arbitrary custom
-widgets are not universally observable. Keys improve identity but cannot make an
-unsupported gesture observable, and the recorder never edits application source.
-
-`RecorderBackend` separates the DevTools web-only host from the panel, allowing
-widget tests of the real Record dialog, immediate file creation, autosave, same-name
-replacement, configured screenshot location, and failure/retry behavior.
+Expectation picking distinguishes text and component targets. Visible screen
+captures are masked in the runtime and previewed in memory, not saved to disk.
+Source builds require Dart >=3.9 / Flutter >=3.35; consumers use compiled assets.
+Protocol version 8 requires rebuilding the extension and recording app together.

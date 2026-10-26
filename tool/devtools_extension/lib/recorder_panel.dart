@@ -3,17 +3,15 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:patrol_recorder/model.dart';
+import 'package:patrol_recorder/patrol_recorder.dart';
 
 import 'src/backend.dart';
 import 'src/expectation_dialog.dart';
-import 'src/recording_setup.dart';
-import 'src/recording_writer.dart';
-import 'src/screenshot_name_dialog.dart';
 
 class RecorderPanel extends StatefulWidget {
   const RecorderPanel({super.key, required this.backend});
   final RecorderBackend backend;
+
   @override
   State<RecorderPanel> createState() => _RecorderPanelState();
 }
@@ -21,22 +19,34 @@ class RecorderPanel extends StatefulWidget {
 class _RecorderPanelState extends State<RecorderPanel> {
   Timer? _timer;
   Future<void>? _refreshTask;
-  bool _busy = false;
-  bool _connected = false;
-  bool _dialogOpen = false;
-  bool _saving = false;
-  int _epoch = 0;
-  String? _error, _connectionIssue, _saveError, _notice;
   Map<String, dynamic>? _snapshot;
-  RecordingWriter? _writer;
-  final _captures = <CapturedScreen>[];
-  final _excluded = <String>{};
+  String? _error;
+  String? _connectionError;
+  bool _connected = false;
+  bool _busy = false;
+  bool _dialogOpen = false;
   bool _reviewedIncomplete = false;
+  bool _textSelection = false;
+  final _excluded = <String>{};
+  Uint8List? _capture;
 
   List<RecordedStep> get _steps => [
     for (final raw in _snapshot?['steps'] as List? ?? [])
       RecordedStep.fromJson(Map<String, dynamic>.from(raw as Map)),
   ];
+
+  void _accept(Map<String, dynamic> snapshot) {
+    if (_snapshot?['sessionId'] != snapshot['sessionId']) {
+      _excluded.clear();
+      _reviewedIncomplete = false;
+      _capture = null;
+    }
+    if (_snapshot?['error'] != snapshot['error']) {
+      _reviewedIncomplete = false;
+    }
+    _snapshot = snapshot;
+    _connected = true;
+  }
 
   @override
   void initState() {
@@ -52,132 +62,50 @@ class _RecorderPanelState extends State<RecorderPanel> {
   }
 
   void _refresh() {
-    if (_busy || _refreshTask != null || !mounted) return;
-    final epoch = _epoch;
-    _refreshTask = _readSnapshot(epoch).whenComplete(() => _refreshTask = null);
+    if (_busy || _refreshTask != null) return;
+    _refreshTask = _readSnapshot().whenComplete(() => _refreshTask = null);
   }
 
-  Future<void> _readSnapshot(int epoch) async {
-    final Map<String, dynamic> snapshot;
+  Future<void> _readSnapshot() async {
     try {
-      snapshot = await widget.backend.command('snapshot');
+      final snapshot = await widget.backend.command('snapshot');
+      if (!mounted) return;
+      setState(() {
+        _accept(snapshot);
+        _connectionError = null;
+      });
+      if (!_dialogOpen &&
+          snapshot['selecting'] == true &&
+          (snapshot['selection'] as Map?)?['selector'] != null) {
+        unawaited(_perform(_configureExpectation));
+      }
     } on Exception catch (error) {
-      if (mounted && epoch == _epoch) {
+      if (mounted) {
         setState(() {
           _connected = false;
-          _connectionIssue = error.toString();
+          _connectionError = '$error';
         });
       }
-      return;
     } on StateError catch (error) {
-      if (mounted && epoch == _epoch) {
+      if (mounted) {
         setState(() {
           _connected = false;
-          _connectionIssue = error.message;
+          _connectionError = error.message;
         });
       }
-      return;
-    }
-    if (!mounted || _busy || epoch != _epoch) return;
-    setState(() {
-      _snapshot = snapshot;
-      _connected = true;
-      _connectionIssue = null;
-    });
-    try {
-      await _persist();
-    } on Exception catch (error) {
-      if (mounted) setState(() => _saveError = error.toString());
-    } on StateError catch (error) {
-      if (mounted) setState(() => _saveError = error.message);
-    }
-    if (mounted &&
-        epoch == _epoch &&
-        !_dialogOpen &&
-        snapshot['selecting'] == true &&
-        snapshot['selection'] is Map &&
-        (snapshot['selection'] as Map)['selector'] != null) {
-      unawaited(_perform(_configureExpectation));
-    }
-  }
-
-  Future<void> _selectExpectation() async {
-    final snapshot = await widget.backend.command('selectTarget');
-    if (mounted) setState(() => _snapshot = snapshot);
-  }
-
-  Future<void> _cancelSelection() async {
-    final snapshot = await widget.backend.command('cancelSelection');
-    if (mounted) setState(() => _snapshot = snapshot);
-  }
-
-  Future<void> _configureExpectation() async {
-    final target = RecorderTarget.fromJson(
-      Map<String, dynamic>.from(_snapshot!['selection'] as Map),
-    );
-    setState(() => _dialogOpen = true);
-    final ExpectationSpec? expectation;
-    try {
-      expectation = await showDialog<ExpectationSpec>(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => ExpectationDialog(
-          target: target,
-          suggestedText: _snapshot?['selectionText'] as String?,
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _dialogOpen = false);
-    }
-    if (!mounted) return;
-    if (expectation == null) {
-      await _cancelSelection();
-      return;
-    }
-    final snapshot = await widget.backend.command(
-      'confirmExpectation',
-      parameters: {'expectation': jsonEncode(expectation.toJson())},
-    );
-    if (!mounted) return;
-    setState(() => _snapshot = snapshot);
-    await _persist();
-  }
-
-  Future<void> _persist() async {
-    if (_writer == null || _snapshot == null) return;
-    if (mounted) setState(() => _saving = true);
-    try {
-      await _writer!.persist(
-        _snapshot!,
-        captures: _captures,
-        excluded: _excluded,
-        acknowledgedIncomplete: _reviewedIncomplete,
-      );
-      if (mounted) setState(() => _saveError = null);
-    } on Exception catch (error) {
-      if (mounted) setState(() => _saveError = error.toString());
-      rethrow;
-    } on StateError catch (error) {
-      if (mounted) setState(() => _saveError = error.message);
-      rethrow;
-    } finally {
-      if (mounted) setState(() => _saving = false);
     }
   }
 
   Future<void> _perform(Future<void> Function() action) async {
     setState(() {
       _busy = true;
-      _epoch++;
       _error = null;
-      _notice = null;
     });
     try {
-      // Let an in-flight autosave finish before changing the destination/session.
       await _refreshTask;
       if (mounted) await action();
     } on Exception catch (error) {
-      if (mounted) setState(() => _error = error.toString());
+      if (mounted) setState(() => _error = '$error');
     } on StateError catch (error) {
       if (mounted) setState(() => _error = error.message);
     } finally {
@@ -185,360 +113,242 @@ class _RecorderPanelState extends State<RecorderPanel> {
     }
   }
 
+  Future<void> _command(
+    String command, {
+    Map<String, String> parameters = const {},
+  }) async {
+    final snapshot = await widget.backend.command(
+      command,
+      parameters: parameters,
+    );
+    if (mounted) setState(() => _accept(snapshot));
+  }
+
   Future<void> _start() async {
-    if (_snapshot == null) throw StateError('Connect the recording app first.');
-    setState(() => _dialogOpen = true);
-    final RecordingWriter? writer;
+    final addKey = await widget.backend.addKeyEnabled();
+    await _command('configure', parameters: {'addkey': '$addKey'});
+    await _command('start');
+    if (mounted) {
+      setState(() {
+        _excluded.clear();
+        _reviewedIncomplete = false;
+        _capture = null;
+      });
+    }
+  }
+
+  Future<void> _configureExpectation() async {
+    _dialogOpen = true;
     try {
-      writer = await showDialog<RecordingWriter>(
+      final expectation = await showDialog<ExpectationSpec>(
         context: context,
         barrierDismissible: false,
-        builder: (_) => RecordingSetup(
-          backend: widget.backend,
-          app: RecorderAppConfig.fromJson(
-            Map<String, dynamic>.from(_snapshot!['config'] as Map),
+        builder: (_) => ExpectationDialog(
+          target: RecorderTarget.fromJson(
+            Map<String, dynamic>.from(_snapshot!['selection'] as Map),
           ),
+          suggestedText: _snapshot?['selectionText'] as String?,
         ),
       );
+      if (!mounted) return;
+      if (expectation == null) {
+        await _command('cancelSelection');
+      } else {
+        await _command(
+          'confirmExpectation',
+          parameters: {'expectation': jsonEncode(expectation.toJson())},
+        );
+      }
     } finally {
-      if (mounted) setState(() => _dialogOpen = false);
-    }
-    if (writer == null || !mounted) return;
-    final RecordingWriter destination = writer;
-    if (_snapshot!['state'] == 'recording') {
-      await widget.backend.command('stop');
-    }
-    final snapshot = await widget.backend.command('start');
-    setState(() {
-      _writer = destination;
-      _snapshot = snapshot;
-      _captures.clear();
-      _excluded.clear();
-      _reviewedIncomplete = false;
-      _saveError = null;
-    });
-    await _persist();
-    if (mounted) {
-      setState(
-        () => _notice =
-            'Recording to ${destination.yamlUri.toFilePath()}. '
-            'Actions are autosaved about once per second. Stop recording before running the generator.',
-      );
+      _dialogOpen = false;
     }
   }
 
-  Future<void> _stop() async {
-    final snapshot = await widget.backend.command('stop');
-    if (!mounted) return;
-    setState(() => _snapshot = snapshot);
-    await _persist();
-    if (mounted) {
-      setState(
-        () => _notice = _writer == null
-            ? 'App recording stopped. Choose Record to create a named YAML journey.'
-            : 'Recording stopped and YAML saved. Review any highlighted steps, then run the generator command below.',
-      );
-    }
-  }
-
-  Future<void> _capture() async {
-    if (_writer == null) await _start();
-    if (_writer == null || !mounted) return;
-    if ((_writer!.saved?.screenshots.length ?? _captures.length) >= 10) {
-      throw StateError(
-        'Keep at most 10 screenshots per recording. Remove a capture before retrying.',
-      );
-    }
+  Future<void> _captureScreen() async {
     final snapshot = await widget.backend.command('capture');
-    final info = Map<String, dynamic>.from(snapshot['screenshot'] as Map);
-    final bytes = base64Decode(info.remove('png') as String);
-    if (info['kind'] != 'flutterContent' ||
-        info['captureId'] is! String ||
-        bytes.length < 8 ||
-        base64Encode(bytes.sublist(0, 8)) != 'iVBORw0KGgo=') {
+    final info = snapshot['screenshot'] as Map?;
+    if (info?['kind'] != 'flutterContent' || info?['png'] is! String) {
       throw const FormatException('The app did not return a viewport PNG.');
     }
-    if (_captures.fold<int>(bytes.length, (n, c) => n + c.bytes.length) >
-        20 * 1024 * 1024) {
-      throw StateError(
-        'Screenshot memory limit reached. Stop and start a new recording.',
-      );
+    final bytes = base64Decode(info!['png'] as String);
+    if (bytes.length < 8 ||
+        base64Encode(bytes.sublist(0, 8)) != 'iVBORw0KGgo=') {
+      throw const FormatException('The app returned an invalid PNG.');
     }
-    if (!mounted) return;
-    final used = _captures.map((c) => c.name).toSet();
-    final base = screenshotName(info['suggestedName'] as String? ?? 'screen');
-    var suggested = base;
-    var suffix = 2;
-    while (used.contains(suggested)) {
-      suggested = '${base}_${suffix++}';
-    }
-    setState(() => _dialogOpen = true);
-    final String? name;
-    try {
-      name = await showDialog<String>(
-        context: context,
-        builder: (_) => ScreenshotNameDialog(
-          bytes: bytes,
-          suggested: suggested,
-          source: info['nameSource'] as String? ?? 'page metadata',
-          usedNames: used,
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _dialogOpen = false);
-    }
-    if (name == null || !mounted) return;
-    final captureName = name;
-    setState(() {
-      _snapshot = snapshot;
-      _captures.add(CapturedScreen(bytes, info, name: captureName));
-    });
-    await _persist();
-    if (mounted) {
-      setState(
-        () => _notice =
-            'Visible screen saved under ${_writer!.config.screenshotsDirectory}; '
-            '${info['redactedRegions']} private regions masked. Its path is recorded in YAML.',
-      );
-    }
+    if (mounted) setState(() => _capture = bytes);
   }
 
   @override
   Widget build(BuildContext context) {
-    final state = _snapshot?['state'] ?? 'unavailable';
     final steps = _steps;
-    final writer = _writer;
-    final saved = writer?.saved;
+    String? code;
+    String? codeIssue;
+    try {
+      code = patrolCode(steps.where((step) => !_excluded.contains(step.id)));
+    } on FormatException catch (error) {
+      codeIssue = error.message;
+    }
+    final recording = _snapshot?['state'] == 'recording';
+    final incomplete = _snapshot?['error'] as String?;
+    final canCopy =
+        !_busy &&
+        code != null &&
+        code.isNotEmpty &&
+        (incomplete == null || _reviewedIncomplete);
     return Scaffold(
       appBar: AppBar(title: const Text('Patrol Recorder')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           Text(
-            _connected
-                ? 'Connected - $state'
-                : 'Disconnected - saved YAML is retained',
+            _connected ? 'Connected - ${_snapshot?['state']}' : 'Disconnected - last code retained; new actions are not captured',
           ),
           const Text(
-            '1. Record a named journey  2. Stop (YAML is saved automatically)  3. Run the Dart generator',
+            'Record, review, then copy Patrol Dart into your test. No recording files or generator commands.',
           ),
           const Text(
-            'Dynamic inputs are saved as {{input_name}} references, never typed values. No x/y selectors.',
+            'Supply input variables yourself. Typed values are never included.',
           ),
-          if (_connectionIssue != null) Text(_connectionIssue!),
           if (_error != null)
             Text(_error!, style: const TextStyle(color: Colors.red)),
-          if (_saveError != null)
-            Text(
-              'YAML NOT UP TO DATE: $_saveError',
-              style: const TextStyle(color: Colors.red),
-            ),
-          if (_notice != null) Text(_notice!),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                FilledButton(
-                  onPressed:
-                      !_busy &&
-                          _connected &&
-                          (state != 'recording' || writer == null)
-                      ? () => _perform(_start)
-                      : null,
-                  child: const Text('Record'),
-                ),
-                OutlinedButton(
-                  onPressed: !_busy && _connected && state == 'recording'
-                      ? () => _perform(_stop)
-                      : null,
-                  child: const Text('Stop recording'),
-                ),
-                OutlinedButton(
-                  onPressed:
-                      !_busy && _connected && _snapshot?['selecting'] != true
-                      ? () => _perform(_capture)
-                      : null,
-                  child: const Text('Capture visible screen'),
-                ),
-                OutlinedButton.icon(
-                  onPressed:
-                      !_busy &&
-                          _connected &&
-                          writer != null &&
-                          state == 'recording' &&
-                          _snapshot?['selecting'] != true &&
-                          (_snapshot?['capabilities'] as List? ?? []).contains(
-                            'expectationPicker',
-                          )
-                      ? () => _perform(_selectExpectation)
-                      : null,
-                  icon: const Icon(Icons.ads_click),
-                  label: const Text('Add expectation'),
-                ),
-                if (_snapshot?['selecting'] == true)
-                  TextButton.icon(
-                    onPressed: _busy ? null : () => _perform(_cancelSelection),
-                    icon: const Icon(Icons.close),
-                    label: const Text('Cancel selection'),
-                  ),
-                if (_saveError != null)
-                  OutlinedButton(
-                    onPressed: _busy ? null : () => _perform(_persist),
-                    child: const Text('Retry YAML save'),
-                  ),
-              ],
-            ),
-          ),
-          if ((_snapshot?['selection'] as Map?)?['issue'] != null)
-            Text(
-              (_snapshot!['selection'] as Map)['issue'] as String,
-              style: const TextStyle(color: Colors.red),
-            ),
-          if (_snapshot?['selecting'] == true)
-            const Text('Select a widget in the app.'),
-          if ((_busy && !_dialogOpen) || _saving)
-            const LinearProgressIndicator(),
-          if (writer != null)
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _saveError == null && saved != null
-                          ? 'Journey YAML saved'
-                          : 'Journey YAML awaiting save',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    SelectableText(writer.yamlUri.toFilePath()),
-                    if (saved != null)
-                      Text(
-                        'Last saved: ${saved.state}, ${saved.steps.length} actions, ${saved.screenshots.length} screenshots.',
-                      ),
-                    const Text(
-                      'Re-recording this name replaces this YAML, not your input implementation. '
-                      'Do not manually edit YAML while recording. Interrupted recordings remain marked recording and are not generated. '
-                      'Record always starts a fresh flow; no runtime session identifiers are saved.',
-                    ),
-                    const Text(
-                      'After stopping, run in the app project terminal:',
-                    ),
-                    SelectableText(writer.root.toFilePath()),
-                    SelectableText(writer.generateCommand),
-                    TextButton(
-                      onPressed: () => _perform(() async {
-                        await Clipboard.setData(
-                          ClipboardData(text: writer.generateCommand),
-                        );
-                        if (mounted) {
-                          setState(
-                            () => _notice =
-                                'Generator command copied. Run it in ${writer.root.toFilePath()}.',
+          if (_connectionError != null)
+            Text(_connectionError!, style: const TextStyle(color: Colors.red)),
+          Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            children: [
+              FilledButton(
+                onPressed: !_busy && _connected && !recording
+                    ? () => _perform(_start)
+                    : null,
+                child: const Text('Record'),
+              ),
+              OutlinedButton(
+                onPressed: !_busy && _connected && recording
+                    ? () => _perform(() => _command('stop'))
+                    : null,
+                child: const Text('Stop recording'),
+              ),
+              OutlinedButton(
+                onPressed: canCopy
+                    ? () => _perform(() async {
+                        await Clipboard.setData(ClipboardData(text: code!));
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Patrol code copied')),
                           );
                         }
-                      }),
-                      child: const Text('Copy generator command'),
-                    ),
-                    const Text(
-                      'The CLI generates Patrol steps, an abstract input contract, and a one-time input provider scaffold. '
-                      'Implement the getters in *_inputs.dart, then flutter analyze and run Patrol. No input values are needed during recording.',
-                    ),
-                    if (saved != null)
-                      ExpansionTile(
-                        title: const Text('YAML source preview'),
-                        children: [SelectableText(saved.toYaml())],
-                      ),
-                  ],
-                ),
+                      })
+                    : null,
+                child: const Text('Copy Patrol code'),
               ),
+              OutlinedButton(
+                onPressed: !_busy && _connected
+                    ? () => _perform(_captureScreen)
+                    : null,
+                child: const Text('Capture visible screen'),
+              ),
+            ],
+          ),
+          if (_busy && !_dialogOpen) const LinearProgressIndicator(),
+          SwitchListTile(
+            title: const Text('Validate text instead of component'),
+            value: _textSelection,
+            onChanged: _busy
+                ? null
+                : (value) => setState(() => _textSelection = value),
+          ),
+          Wrap(
+            children: [
+              TextButton(
+                onPressed:
+                    !_busy &&
+                        _connected &&
+                        recording &&
+                        _snapshot?['selecting'] != true
+                    ? () => _perform(
+                        () => _command(
+                          'selectTarget',
+                          parameters: {
+                            'kind': _textSelection ? 'text' : 'component',
+                          },
+                        ),
+                      )
+                    : null,
+                child: const Text('Add expectation'),
+              ),
+              if (_snapshot?['selecting'] == true)
+                TextButton(
+                  onPressed: _busy
+                      ? null
+                      : () => _perform(() => _command('cancelSelection')),
+                  child: const Text('Cancel selection'),
+                ),
+            ],
+          ),
+          if (_snapshot?['selecting'] == true)
+            const Text('Select a widget in the app.'),
+          if ((_snapshot?['selection'] as Map?)?['issue'] != null)
+            Text(
+              '${(_snapshot!['selection'] as Map)['issue']}',
+              style: const TextStyle(color: Colors.red),
             ),
-          if (_snapshot?['error'] != null)
+          if (incomplete != null)
             CheckboxListTile(
-              title: Text('Incomplete recording: ${_snapshot!['error']}'),
+              title: Text('Incomplete recording: $incomplete'),
               subtitle: const Text(
                 'I reviewed the incomplete recording and accept the included actions.',
               ),
               value: _reviewedIncomplete,
-              onChanged: _busy || writer == null
+              onChanged: _busy
                   ? null
-                  : (value) => _perform(() async {
-                      setState(() => _reviewedIncomplete = value!);
-                      await _persist();
-                    }),
+                  : (value) => setState(() => _reviewedIncomplete = value!),
             ),
-          Text(
-            'Recorded actions (${steps.length})',
-            style: Theme.of(context).textTheme.titleMedium,
+          if (codeIssue != null)
+            Text(
+              'Review required: $codeIssue',
+              style: const TextStyle(color: Colors.red),
+            ),
+          const Text('Patrol Dart'),
+          SelectableText(
+            code ?? 'Resolve or explicitly exclude the flagged actions to preview runnable code.',
+            key: const ValueKey('patrol_code'),
           ),
           const Text(
-            'Review required actions before generating. Unchecked actions stay documented in YAML but will not be replayed.',
+            'Recorded actions - uncheck only actions you intentionally want to omit.',
           ),
           for (final step in steps)
             CheckboxListTile(
               key: ValueKey(step.id),
-              contentPadding: EdgeInsets.zero,
               value: !_excluded.contains(step.id),
-              onChanged: _busy || writer == null || state == 'recording'
+              onChanged: _busy || recording
                   ? null
-                  : (value) => _perform(() async {
-                      setState(() {
-                        if (value == true) {
-                          _excluded.remove(step.id);
-                        } else {
-                          _excluded.add(step.id);
-                        }
-                      });
-                      await _persist();
+                  : (value) => setState(() {
+                      if (value == true) {
+                        _excluded.remove(step.id);
+                      } else {
+                        _excluded.add(step.id);
+                      }
                     }),
-              title: Text(
-                '${step.id}: ${step.action.name}${step.target.issue == null ? '' : ' - needs review'}',
-              ),
-              subtitle: Text(
-                step.target.issue ??
-                    '${step.target.toJson()}'
-                        '${step.text == null ? '' : '\nInline link: ${step.text}'}'
-                        '${step.scrollDirection == null ? '' : '\nScroll ${step.scrollDirection!.name} in ${step.scrollView?.toJson() ?? 'the Scrollable containing the target'}'}'
-                        '${step.expectation == null ? '' : '\nExpect: ${step.expectation!.toJson()}'}'
-                        '${step.input == null ? '' : '\nInput: {{${step.input}}}${step.secret ? ' (secret)' : ''}'}',
+              title: Text('${step.id}: ${step.action.name}'),
+              subtitle: Text(step.target.issue ?? '${step.target.toJson()}'),
+            ),
+          for (final raw in _snapshot?['keySuggestions'] as List? ?? [])
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: SelectableText(
+                  'Suggested key for ${raw['widget']}: key: const ValueKey("${raw['key']}")\n'
+                  '${raw['tree']}\nReview the source location and add the key yourself, then rebuild and re-record. No source edits have been applied.',
+                ),
               ),
             ),
-          Text(
-            'Screenshots (${saved?.screenshots.length ?? _captures.length})',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const Text(
-            'Visible Flutter viewport only; sensitive/obscured regions are masked. '
-            'Images save immediately to the configured screenshot directory. Removing a reference does not delete a saved PNG.',
-          ),
-          if (saved != null)
-            for (final capture in saved.screenshots)
-              ListTile(
-                title: Text(
-                  '${capture.name}: ${capture.afterStep ?? 'before first action'}',
-                ),
-                subtitle: SelectableText(
-                  writer!.root.resolve(capture.path).toFilePath(),
-                ),
-                trailing: IconButton(
-                  tooltip: 'Remove screenshot reference',
-                  icon: const Icon(Icons.close),
-                  onPressed: _busy
-                      ? null
-                      : () => _perform(() async {
-                          setState(() {
-                            _captures.removeWhere(
-                              (c) => c.name == capture.name,
-                            );
-                          });
-                          await _persist();
-                        }),
-                ),
-              ),
-          for (final capture in _captures)
-            SizedBox(height: 180, child: Image.memory(capture.bytes)),
+          if (_capture != null) ...[
+            const Text(
+              'Visible screen preview (masked private regions, not saved to disk)',
+            ),
+            Image.memory(_capture!),
+          ],
         ],
       ),
     );

@@ -3,7 +3,7 @@ library;
 
 import 'dart:convert';
 
-const recorderProtocolVersion = 7;
+const recorderProtocolVersion = 8;
 const recorderServiceMethod = 'ext.patrol_recorder.command';
 const recorderEventKind = 'patrol_recorder.changed';
 
@@ -354,82 +354,6 @@ class RecordedStep {
           : ExpectationSpec.fromJson(
               json['expectation'] as Map<String, dynamic>,
             ),
-    );
-  }
-}
-
-/// Optional legacy/project-identification hints. New YAML contains no bootstrap or values.
-class RecorderAppConfig {
-  RecorderAppConfig({
-    this.appImport,
-    this.appBuilder,
-    Map<String, Map<String, String>> safeProfiles = const {'demo': {}},
-  }) : safeProfiles = Map.unmodifiable({
-         for (final entry in safeProfiles.entries)
-           entry.key: Map<String, String>.unmodifiable(entry.value),
-       }) {
-    if ((appImport == null) != (appBuilder == null) ||
-        appImport != null &&
-            (!RegExp(r'^package:[a-z][a-z0-9_]*/[a-zA-Z0-9_/]+\.dart$')
-                    .hasMatch(appImport!) ||
-                !RegExp(r'^[a-z][a-zA-Z0-9]*$').hasMatch(appBuilder!))) {
-      throw const FormatException(
-        'Configure a package Dart import and a public no-argument widget builder.',
-      );
-    }
-    if (safeProfiles.isEmpty) {
-      throw const FormatException(
-        'At least one safe data profile is required.',
-      );
-    }
-    for (final entry in safeProfiles.entries) {
-      requireIdentifier(entry.key, 'Profile name');
-      for (final key in entry.value.keys) {
-        requireIdentifier(key, 'Input name');
-        if (RegExp(r'password|token|secret|credential|api_key').hasMatch(key)) {
-          throw const FormatException(
-            'Credential fields cannot have recorded defaults.',
-          );
-        }
-      }
-    }
-  }
-
-  final String? appImport;
-  final String? appBuilder;
-  final Map<String, Map<String, String>> safeProfiles;
-
-  Map<String, Object?> toJson() => {
-    'appImport': appImport,
-    'appBuilder': appBuilder,
-    'safeProfiles': safeProfiles,
-  };
-
-  factory RecorderAppConfig.fromJson(Map<String, dynamic> json) {
-    if (json['appImport'] != null && json['appImport'] is! String ||
-        json['appBuilder'] != null && json['appBuilder'] is! String ||
-        json['safeProfiles'] is! Map<String, dynamic>) {
-      throw const FormatException('Invalid app configuration.');
-    }
-    final profiles = <String, Map<String, String>>{};
-    for (final entry
-        in (json['safeProfiles'] as Map<String, dynamic>).entries) {
-      if (entry.value is! Map<String, dynamic>) {
-        throw const FormatException('Invalid profile.');
-      }
-      final fields = <String, String>{};
-      for (final field in (entry.value as Map<String, dynamic>).entries) {
-        if (field.value is! String) {
-          throw const FormatException('M1 profile values must be strings.');
-        }
-        fields[field.key] = field.value as String;
-      }
-      profiles[entry.key] = fields;
-    }
-    return RecorderAppConfig(
-      appImport: json['appImport'] as String?,
-      appBuilder: json['appBuilder'] as String?,
-      safeProfiles: profiles,
     );
   }
 }

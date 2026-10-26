@@ -109,6 +109,7 @@ extension _ScrollObservation on _RecorderObserver {
       return;
     }
     final view = _TargetTree(root!).resolve(element, rootOnly: true);
+    if (view.selector == null) recorder._suggestKey(element);
     final trace = _ScrollTrace(
       state,
       element,

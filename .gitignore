@@ -36,4 +36,3 @@ local_doc/
 !/extension/devtools/
 !/extension/devtools/build/
 !/extension/devtools/build/**
-tool/patrol_recorder_generator/build/**

@@ -44,13 +44,7 @@ void main() {
   testWidgets('one root wrapper automatically records the hook-free login', (
     tester,
   ) async {
-    final recorder = RecorderController(
-      config: RecorderAppConfig(
-        appImport: 'package:patrol_recorder_example/app.dart',
-        appBuilder: 'createApp',
-        safeProfiles: demoProfiles,
-      ),
-    );
+    final recorder = RecorderController();
     try {
       await tester.pumpWidget(
         RecorderScope(controller: recorder, child: createApp()),

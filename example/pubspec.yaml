@@ -12,8 +12,6 @@ dependencies:
     sdk: flutter
 
 dev_dependencies:
-  patrol_recorder_generator:
-    path: ../tool/patrol_recorder_generator
   patrol_recorder:
     path: ..
   flutter_test:
@@ -21,10 +19,6 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   patrol: 4.10.0
   patrol_finders: 3.6.0
-
-dependency_overrides:
-  patrol_recorder:
-    path: ..
 
 flutter:
   uses-material-design: true
@@ -34,10 +28,4 @@ patrol:
   test_directory: patrol_test
 
 recorder_config:
-  recordings_directory: patrol_recorder
-  screenshots_directory: patrol_recorder/screenshots
-  output_directory: patrol_test/recorded_journeys
-  journey_id: login
-  case_id: sign_in
-  case_name: Sign in with demonstration profile
-  profile: demo
+  addkey: true

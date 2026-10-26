@@ -17,16 +17,7 @@ Future<void> recording(
   Future<void> Function(RecorderController recorder) body, {
   int maxSteps = 500,
 }) async {
-  final recorder = RecorderController(
-    config: RecorderAppConfig(
-      appImport: 'package:example/app.dart',
-      appBuilder: 'createApp',
-      safeProfiles: const {
-        'demo': {'email': 'demo@example.invalid'},
-      },
-    ),
-    maxSteps: maxSteps,
-  );
+  final recorder = RecorderController(maxSteps: maxSteps);
   try {
     await tester.pumpWidget(
       RecorderScope(

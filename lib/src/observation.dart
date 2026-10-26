@@ -28,6 +28,10 @@ const _widgetTypes = <String, Type>{
 
 /// Widgets that handle a tap/press themselves, enabled or not.
 bool _interactive(Widget widget) => switch (widget) {
+  RawGestureDetector w => w.gestures.keys.any(
+    (type) =>
+        type == TapGestureRecognizer || type == LongPressGestureRecognizer,
+  ),
   ButtonStyleButton() ||
   IconButton() ||
   FloatingActionButton() ||
@@ -426,44 +430,46 @@ class _RecorderObserver {
   }
 
   Element? _control(Element leaf) {
-    Element? fallback;
+    if (_interactive(leaf.widget) &&
+        leaf.widget is! EditableText &&
+        leaf.widget is! RawGestureDetector &&
+        leaf.widget is! GestureDetector &&
+        leaf.widget is! InkResponse &&
+        leaf.widget is! Semantics) {
+      return leaf;
+    }
     final chain = <Element>[leaf];
     leaf.visitAncestorElements((e) {
       chain.add(e);
       return e != root;
     });
+    if (chain.any((element) => element.widget is EditableText)) {
+      return chain.firstWhere(
+        (element) => element.widget is TextField,
+        orElse: () =>
+            chain.firstWhere((element) => element.widget is EditableText),
+      );
+    }
+    Element? owner;
     for (final element in chain) {
       final widget = element.widget;
-      if (widget is TextField ||
-          widget is ButtonStyleButton &&
-              _widgetTypes.containsValue(widget.runtimeType) ||
-          widget is IconButton ||
-          widget is FloatingActionButton ||
-          widget is Switch ||
-          widget is Checkbox ||
-          widget is ListTile ||
-          widget is SwitchListTile ||
-          widget is CheckboxListTile ||
-          widget is DropdownButton ||
-          widget is PopupMenuButton) {
+      if (widget is TextField) {
         return element;
       }
-      if (widget is GestureDetector &&
-          (widget.onTap != null ||
-              widget.onTapUp != null ||
-              widget.onTapDown != null ||
-              widget.onLongPress != null)) {
-        // The innermost independent detector owns this hit; do not select its parent.
-        if (fallback != null) return fallback;
-        fallback = element;
-      } else if (widget is InkResponse) {
-        if (fallback?.widget is InkResponse) return fallback;
-        fallback = element;
-      } else if (widget is EditableText) {
-        fallback ??= element;
+      if (widget is EditableText) {
+        owner ??= element;
+        continue;
       }
+      if (widget is RawGestureDetector && _interactive(widget)) {
+        // A second recognizer boundary belongs to a different gesture owner.
+        if (owner != null) break;
+        owner = element;
+      } else if (owner != null && _interactive(widget)) {
+        owner = element;
+      }
+      if (identical(element, root) || widget is Scrollable) break;
     }
-    return fallback;
+    return owner;
   }
 
   bool _enabled(Element element) => switch (element.widget) {
@@ -489,13 +495,21 @@ class _RecorderObserver {
           w.onLongPress != null,
     TextField w => w.enabled != false && !w.readOnly,
     EditableText w => !w.readOnly,
-    _ => false,
+    _ =>
+      _interactive(element.widget) ||
+          element
+                  .findRenderObject()
+                  ?.debugSemantics
+                  ?.getSemanticsData()
+                  .hasAction(ui.SemanticsAction.tap) ==
+              true,
   };
 
   bool _canLongPress(Element element) => switch (element.widget) {
     ButtonStyleButton w => w.onLongPress != null,
     InkResponse w => w.onLongPress != null,
     GestureDetector w => w.onLongPress != null,
+    RawGestureDetector w => w.gestures.containsKey(LongPressGestureRecognizer),
     _ => false,
   };
 
@@ -508,6 +522,9 @@ class _RecorderObserver {
   }) {
     flushScroll();
     anchorRecentScroll(target, element);
+    if (target.selector == null && element != null) {
+      recorder._suggestKey(element);
+    }
     recorder._record(action, target, source: source, text: text);
   }
 
@@ -675,9 +692,11 @@ class _RecorderObserver {
     final control = _control(element);
     if (control == null) {
       final node = element.renderObject.debugSemantics;
-      if (node?.getSemanticsData().hasAction(ui.SemanticsAction.tap) == true) {
+      if (node?.getSemanticsData().hasAction(event.type) == true) {
         _action(
-          RecordedAction.tap,
+          event.type == ui.SemanticsAction.longPress
+              ? RecordedAction.longPress
+              : RecordedAction.tap,
           tree.resolve(
             element,
             secret: _marked<RecorderSensitive>(element),
@@ -771,6 +790,9 @@ class _RecorderObserver {
     }
     // Notifications include selection/programmatic changes. Never read or retain text.
     final target = _inputTarget!;
+    if (target.selector == null) {
+      recorder._suggestKey(_control(element) ?? element);
+    }
     flushScroll();
     anchorRecentScroll(target, element);
     final name = _inputs.putIfAbsent(target.identity, () {

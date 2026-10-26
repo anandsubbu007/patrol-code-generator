@@ -19,8 +19,3 @@ example/test-results/
 example/playwright-report/
 example/test_bundle.dart
 example/patrol_test/test_bundle.dart
-example/patrol_test/recorded_journeys/login_demo/
-example/patrol_recorder/login_demo.yml
-example/patrol_recorder/screenshots/login_demo/
-example/artifacts/recorder_captures/yaml_login/session_*/
-!example/patrol_recorder/screenshots/**/.*.recorder

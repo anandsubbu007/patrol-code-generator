@@ -1,9 +1,0 @@
-Instead of writing yaml and then generating script i think we can directly write patroll code so user can copy and past it whereever they want. i think that should be easy.
-$({key}).{actions}.
-and other required. if i write the code it is just 15 lines but this code generate more than 100lines. which seems unnecessary.
-we can add a option like in pubyaml config if they give addkey: true, then we can create a new key for that component which requires it. but it needs to be a correct component in that tree. for ef we can have widget inkwell->card->container->text when user tap text we need to add key to inkewll because it starts invocation for exception whichevery is best we can have it we can ask user to which only you need to validate text or component.
-
-also i think we need to avoid finding wright widget by known widget in real life each deeloper prefer different, so i think our recorder needs to understand the flutter tree and find the right one.
-the trick is to find a right widget and key and do patrol action.
-
-first understand flutter tree, then completely understand patrol package

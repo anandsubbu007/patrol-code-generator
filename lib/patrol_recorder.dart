@@ -3,3 +3,4 @@ library;
 
 export 'model.dart';
 export 'src/recorder.dart';
+export 'src/patrol_code.dart';

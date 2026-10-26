@@ -1,40 +1,57 @@
 import 'package:devtools_extensions/devtools_extensions.dart';
 import 'package:dtd/dtd.dart';
 import 'package:patrol_recorder/model.dart';
+import 'package:yaml/yaml.dart';
 
 import 'backend.dart';
-import 'exporter.dart';
 
 class DevToolsRecorderBackend implements RecorderBackend {
   @override
-  WorkspaceFiles get files {
+  Future<bool> addKeyEnabled() async {
     final connection = dtdManager.connection.value;
     if (connection == null) {
       throw StateError(
-        'Workspace export needs the DevTools DTD connection. Start the app with --print-dtd or use an IDE-managed DevTools session.',
-      );
-    }
-    return DtdWorkspaceFiles(connection);
-  }
-
-  @override
-  Future<List<Uri>> projects() async {
-    final connection = dtdManager.connection.value;
-    if (connection == null) {
-      throw StateError(
-        'No authorized workspace connection. Start the app with --print-dtd or use an IDE-managed DevTools session.',
+        'Connect an authorized DTD workspace to read recorder_config. Launch with --print-dtd or use IDE-managed DevTools.',
       );
     }
     final roots = await connection.getProjectRoots();
-    if (roots.uris == null) {
-      throw StateError('DTD returned no project listing.');
+    final uris = roots.uris;
+    if (uris == null || uris.isEmpty) {
+      throw StateError('No authorized app project roots are available.');
     }
-    return roots.uris!
-        .map(
-          (uri) =>
-              uri.path.endsWith('/') ? uri : uri.replace(path: '${uri.path}/'),
-        )
-        .toList();
+    final candidates = <String>[];
+    for (final root in uris.toSet()) {
+      final directory = root.path.endsWith('/')
+          ? root
+          : root.replace(path: '${root.path}/');
+      final content = (await connection.readFileAsString(
+        directory.resolve('pubspec.yaml'),
+      )).content;
+      if (content == null) {
+        throw StateError('DTD returned no app pubspec content.');
+      }
+      final document = loadYaml(content);
+      if (document is Map &&
+          document.containsKey('flutter') &&
+          [document['dependencies'], document['dev_dependencies']].any(
+            (dependencies) =>
+                dependencies is Map &&
+                dependencies.containsKey('patrol_recorder'),
+          )) {
+        candidates.add(content);
+      }
+    }
+    if (candidates.isEmpty) {
+      throw StateError(
+        'No Flutter app with a patrol_recorder dependency was found in the authorized workspace.',
+      );
+    }
+    if (candidates.length != 1) {
+      throw StateError(
+        'Cannot identify the recording app pubspec in DTD roots.',
+      );
+    }
+    return parseAddKeyEnabled(candidates.single);
   }
 
   @override
